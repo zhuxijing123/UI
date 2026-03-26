@@ -129,6 +129,37 @@ export type MapDocument = {
   logicHeight: number;
   groundDir: number;
   blockData: Uint8Array;
+  metadata: MapInfoEntry | null;
+  overlays: MapOverlayEntry[];
+  overlaySummary: MapOverlaySummary;
+};
+
+export type MapInfoEntry = {
+  id: number;
+  mapId: string;
+  file: string;
+  mapName: string;
+  minimap: string;
+};
+
+export type MapOverlayKind = "npc" | "monster" | "teleport";
+
+export type MapOverlayEntry = {
+  id: string;
+  kind: MapOverlayKind;
+  x: number;
+  y: number;
+  label: string;
+  subtitle: string;
+  radius: number;
+  targetMapId: string | null;
+  sourceId: number;
+};
+
+export type MapOverlaySummary = {
+  npc: number;
+  monster: number;
+  teleport: number;
 };
 
 export type UiLayoutDocument = {

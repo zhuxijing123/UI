@@ -10,6 +10,7 @@ import type {
   MapDocument,
   UiHierarchyNode
 } from "./types";
+import { buildEmptyMapOverlaySummary } from "./legacy-map-data";
 
 type LuaChunk = {
   body?: Array<{
@@ -324,7 +325,10 @@ export function parseMapDocument(id: string, name: string, sourcePath: string, b
     kind: "map",
     logicHeight,
     logicWidth,
+    metadata: null,
     name,
+    overlays: [],
+    overlaySummary: buildEmptyMapOverlaySummary(),
     sourcePath,
     version
   };

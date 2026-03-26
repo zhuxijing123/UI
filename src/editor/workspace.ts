@@ -1,5 +1,6 @@
 import type { EditorDocument, ImageDocument, UiLayoutDocument, WorkspaceAsset, WorkspaceAssetKind } from "./types";
 import { parseAtlasDocument, parseBizDocument, parseLegacyUILayoutText, parseMapDocument } from "./formats";
+import { attachLegacyMapData, parseLegacyMapInfoText, parseLegacyMonsterText, parseLegacyNpcText } from "./legacy-map-data";
 
 export type WorkspaceScanResult = {
   assets: WorkspaceAsset[];
@@ -126,8 +127,7 @@ export async function openWorkspaceFiles(fileList: FileList | File[], label?: st
 }
 
 export async function readAssetText(asset: WorkspaceAsset): Promise<string> {
-  const file = await getAssetFile(asset);
-  return file.text();
+  return decodeBufferToText(await readAssetBuffer(asset));
 }
 
 export async function readAssetBuffer(asset: WorkspaceAsset): Promise<ArrayBuffer> {
@@ -161,6 +161,32 @@ function findSiblingImageAsset(asset: WorkspaceAsset, assets: WorkspaceAsset[]):
   const basePath = asset.path.slice(0, Math.max(0, asset.path.lastIndexOf(".")));
   const candidates = [`${basePath}.png`, `${basePath}.jpg`, `${basePath}.webp`];
   return assets.find((candidate) => candidates.includes(candidate.path)) ?? null;
+}
+
+function findLegacyDataAsset(assets: WorkspaceAsset[], suffix: string): WorkspaceAsset | null {
+  const normalizedSuffix = normalizePath(suffix).toLowerCase();
+  return (
+    assets.find((candidate) => candidate.path.toLowerCase().endsWith(normalizedSuffix)) ??
+    assets.find((candidate) => candidate.name.toLowerCase() === normalizedSuffix.split("/").pop()) ??
+    null
+  );
+}
+
+function decodeBufferToText(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder("utf-8").decode(bytes.subarray(3));
+  }
+
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    try {
+      return new TextDecoder("gb18030").decode(bytes);
+    } catch {
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+  }
 }
 
 export async function openAssetDocument(asset: WorkspaceAsset, assets: WorkspaceAsset[]): Promise<EditorDocument> {
@@ -199,7 +225,21 @@ export async function openAssetDocument(asset: WorkspaceAsset, assets: Workspace
     );
   }
   if (asset.kind === "map") {
-    return parseMapDocument(id, asset.name, asset.path, await readAssetBuffer(asset));
+    let document = parseMapDocument(id, asset.name, asset.path, await readAssetBuffer(asset));
+    const [mapInfoText, npcText, monsterText] = await Promise.all([
+      findLegacyDataAsset(assets, "/long/mapinfo.csv"),
+      findLegacyDataAsset(assets, "/long/npcgen.csv"),
+      findLegacyDataAsset(assets, "/long/mongen.csv")
+    ].map(async (dataAsset) => (dataAsset ? readAssetText(dataAsset) : null)));
+    if (mapInfoText || npcText || monsterText) {
+      document = attachLegacyMapData(
+        document,
+        mapInfoText ? parseLegacyMapInfoText(mapInfoText) : [],
+        npcText ? parseLegacyNpcText(npcText) : [],
+        monsterText ? parseLegacyMonsterText(monsterText) : []
+      );
+    }
+    return document;
   }
   if (asset.kind === "image") {
     const document: ImageDocument = {

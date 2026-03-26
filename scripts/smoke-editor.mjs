@@ -29,6 +29,15 @@ try {
     await page.getByText(/Workspace: legacy-sample/i).waitFor({ timeout: 15000 });
     await page.screenshot({ path: path.join(outDir, "dev-imported.png"), fullPage: true });
 
+    await page.locator(".tree__asset", { hasText: "sample-layout.json" }).dblclick();
+    await page.getByText("Legacy Layout Preview", { exact: true }).waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(outDir, "dev-sample-layout.png"), fullPage: true });
+
+    await page.locator(".tree__asset", { hasText: "50012.mapo" }).dblclick();
+    await page.getByText("NPC 2", { exact: true }).waitFor({ timeout: 15000 });
+    await page.getByText("Monster 1", { exact: true }).waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(outDir, "dev-map-overlay.png"), fullPage: true });
+
     await page.getByRole("button", { name: "Avatar Lab" }).click();
     await page.getByText("Avatar Preview Lab", { exact: true }).waitFor({ timeout: 15000 });
     await page.screenshot({ path: path.join(outDir, "dev-avatar-lab.png"), fullPage: true });

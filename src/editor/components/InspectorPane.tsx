@@ -311,6 +311,8 @@ export function InspectorPane({
             {activeDocument.logicWidth} × {activeDocument.logicHeight}
           </InspectorRow>
           <InspectorRow label="Ground Dir">{activeDocument.groundDir}</InspectorRow>
+          <InspectorRow label="MapId">{activeDocument.metadata?.mapId ?? "(unmatched)"}</InspectorRow>
+          <InspectorRow label="File">{activeDocument.metadata?.file ?? activeDocument.name}</InspectorRow>
         </InspectorSection>
         <InspectorSection title="Brush">
           <InspectorRow label="Paint Value">
@@ -322,6 +324,11 @@ export function InspectorPane({
             </select>
           </InspectorRow>
           <InspectorRow label="Selected Cell">{describeMapCellValue(activeDocument, selectedMapCell)}</InspectorRow>
+        </InspectorSection>
+        <InspectorSection title="Overlays">
+          <InspectorRow label="NPC">{activeDocument.overlaySummary.npc}</InspectorRow>
+          <InspectorRow label="Teleport">{activeDocument.overlaySummary.teleport}</InspectorRow>
+          <InspectorRow label="Monster">{activeDocument.overlaySummary.monster}</InspectorRow>
         </InspectorSection>
       </div>
     );

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test:smoke": "node ./scripts/smoke-editor.mjs",
+    "test:smoke:sequential": "node ./scripts/run-smoke-sequential.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

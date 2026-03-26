@@ -30,6 +30,7 @@ The current milestone delivers the first working editor shell in React + Vite an
   - view hierarchy
   - select nodes
   - drag nodes in the viewport
+  - render imported legacy image assets directly inside the viewport
   - edit core properties in inspector
   - add / remove child nodes
   - save as `json` or `lua`
@@ -50,6 +51,8 @@ The current milestone delivers the first working editor shell in React + Vite an
   - animate real effect frames inside the workbench
 - MAPO editing:
   - parse logic grid
+  - decode legacy `long/*.csv` metadata with UTF-8 / GB18030 fallback
+  - overlay NPC / teleport / monster points from `mapinfo.csv`, `npcgen.csv`, `mongen.csv`
   - paint cell values
   - save back as RLE-encoded `.mapo`
 - Text editing:
@@ -68,6 +71,7 @@ src/
   editor/
     app-utils.ts
     formats.ts
+    legacy-map-data.ts
     presets.ts
     types.ts
     view-model.ts
@@ -77,6 +81,7 @@ src/
       EmptyState.tsx
       HierarchyTree.tsx
       InspectorPane.tsx
+      LegacyUiLayoutViewport.tsx
       MapDocumentCanvas.tsx
       PreviewPane.tsx
       WelcomeHome.tsx
@@ -93,6 +98,7 @@ pnpm install
 pnpm typecheck
 pnpm build
 pnpm dev --host 127.0.0.1 --port 3100
+pnpm test:smoke:sequential
 ```
 
 ## Smoke Test
@@ -101,6 +107,12 @@ Start the editor first, then run:
 
 ```bash
 pnpm test:smoke
+```
+
+For the full sequential workflow with auto-selected free ports and automatic server cleanup:
+
+```bash
+pnpm test:smoke:sequential
 ```
 
 Optional environment variables:
@@ -133,6 +145,8 @@ Smoke verification currently covers:
 
 - editor shell render
 - folder import via `webkitdirectory`
+- imported legacy layout preview render
+- map overlay render from `long/*.csv`
 - Avatar Lab render on real legacy fixture assets
 - Effect Lab render on real legacy fixture assets
 - creating a new UI layout

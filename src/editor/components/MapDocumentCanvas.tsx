@@ -55,6 +55,49 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
       context.lineWidth = Math.max(2, Math.floor(cellSize / 3));
       context.strokeRect(selectedCell.x * cellSize, selectedCell.y * cellSize, cellSize, cellSize);
     }
+
+    for (const overlay of document.overlays) {
+      if (overlay.x < 0 || overlay.y < 0 || overlay.x >= document.logicWidth || overlay.y >= document.logicHeight) continue;
+      const centerX = overlay.x * cellSize + cellSize / 2;
+      const centerY = overlay.y * cellSize + cellSize / 2;
+      const radius = Math.max(3, Math.min(10, Math.round(cellSize * 0.45)));
+      context.save();
+      if (overlay.kind === "npc") {
+        context.fillStyle = "#f6c96d";
+        context.strokeStyle = "rgba(0, 0, 0, 0.85)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+      } else if (overlay.kind === "teleport") {
+        context.fillStyle = "#5de1ff";
+        context.strokeStyle = "rgba(0, 0, 0, 0.85)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(centerX, centerY - radius);
+        context.lineTo(centerX + radius, centerY);
+        context.lineTo(centerX, centerY + radius);
+        context.lineTo(centerX - radius, centerY);
+        context.closePath();
+        context.fill();
+        context.stroke();
+      } else {
+        context.fillStyle = "#ff7676";
+        context.strokeStyle = "rgba(0, 0, 0, 0.85)";
+        context.lineWidth = 1.5;
+        context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+        context.strokeRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+      }
+
+      if (cellSize >= 7) {
+        context.fillStyle = "rgba(237, 242, 255, 0.92)";
+        context.font = `${Math.max(10, Math.floor(cellSize * 0.95))}px Bahnschrift, sans-serif`;
+        context.textBaseline = "top";
+        context.fillText(overlay.label, centerX + radius + 2, centerY - radius);
+      }
+      context.restore();
+    }
   }, [cellSize, document, selectedCell]);
 
   return (
@@ -68,6 +111,24 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
           onPaint(x, y);
         }}
       />
+      <div className="map-canvas__summary">
+        <div className="map-canvas__legend">
+          <span className="map-canvas__legend-item map-canvas__legend-item--npc">NPC {document.overlaySummary.npc}</span>
+          <span className="map-canvas__legend-item map-canvas__legend-item--teleport">
+            Teleport {document.overlaySummary.teleport}
+          </span>
+          <span className="map-canvas__legend-item map-canvas__legend-item--monster">
+            Monster {document.overlaySummary.monster}
+          </span>
+        </div>
+        {document.metadata ? (
+          <p className="map-canvas__meta">
+            {document.metadata.mapId} · {document.metadata.file} · {document.metadata.mapName || document.metadata.minimap}
+          </p>
+        ) : (
+          <p className="map-canvas__meta">No `mapinfo.csv` match found for this map file.</p>
+        )}
+      </div>
     </div>
   );
 }

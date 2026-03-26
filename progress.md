@@ -136,3 +136,62 @@ Next
 - 给导入工作区补 map overlay 数据读取，做 NPC / 传送 / 怪物覆盖层
 - 给目录上传模式补只读标识和保存提示
 - 继续抽取旧仓库 `LegacyUILayoutView`，让 UI 视口从简化框图升级为真实原版节点渲染
+
+2026-03-26 Map Overlay + UI Runtime Preview
+- 已新增 `src/editor/legacy-map-data.ts`：
+  - 解析 `mapinfo.csv`
+  - 解析 `npcgen.csv`
+  - 解析 `mongen.csv`
+  - 以字符串 `mapid` 为主键匹配地图
+  - 为数值地图文件名补 `-30000` 数字别名兜底
+- 已升级 `src/editor/workspace.ts`：
+  - `readAssetText()` 改为二进制读取后解码
+  - 优先 UTF-8，失败回退 `gb18030`
+  - 打开 `.mapo` 时会自动联动 `long/*.csv`
+- 已升级 `src/editor/components/MapDocumentCanvas.tsx`：
+  - 画出 NPC / Teleport / Monster 覆盖层
+  - 增加图例和地图元数据摘要
+- 已升级 `src/editor/components/InspectorPane.tsx`：
+  - Map 文档新增 overlay 统计
+  - Map 文档新增 mapId / file 信息
+- 已新增 `src/editor/components/LegacyUiLayoutViewport.tsx`：
+  - 用旧版 `uilayout` 坐标系递归渲染节点
+  - 支持直接从当前工作区图片资源渲染 `res/sel/dis`
+  - 支持文本节点与基础按钮/图片/面板外观
+  - 仍保留拖拽与选中编辑链路
+- 已修正坐标系：
+  - `src/editor/presets.ts` 的 starter layout 改为旧版绝对坐标
+  - `fixtures/legacy-sample/uilayout-json/sample-layout.json` 同步修正
+- 已扩充夹具：
+  - `fixtures/legacy-sample/long/mapinfo.csv`
+  - `fixtures/legacy-sample/long/npcgen.csv`
+  - `fixtures/legacy-sample/long/mongen.csv`
+  - `fixtures/legacy-sample/uilayout-json/sample-layout.json`
+- 已升级真实浏览器冒烟脚本：
+  - 会打开 `sample-layout.json`
+  - 会验证布局视口真实渲染
+  - 会打开 `50012.mapo`
+  - 会验证 overlay 计数 `NPC 2 / Teleport 1 / Monster 1`
+  - 已新增 `scripts/run-smoke-sequential.mjs`
+  - 自动选空闲端口
+  - `vite` / `preview` 全部使用 `--strictPort`
+  - 跑完自动清理子进程，避免遗留占口
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke` against `vite dev`
+  - `pnpm test:smoke` against `vite preview`
+  - `pnpm test:smoke:sequential`
+- 新工件：
+  - `output/playwright/dev-sample-layout.png`
+  - `output/playwright/dev-map-overlay.png`
+  - `output/playwright/preview/dev-sample-layout.png`
+  - `output/playwright/preview/dev-map-overlay.png`
+
+Next
+- 给 UI 视口补 atlas frame 裁切渲染，不只支持直接图片路径
+- 把 bitmap font / rich text / loading bar 继续从旧链路迁入
+- 给地图 overlay 增加 `mondef.csv` 关联，显示怪物名称和模型
+- 给 Teleport overlay 增加多目标展开与脚本入口信息
+- 给保存链路补只读工作区提示和 dirty 保护

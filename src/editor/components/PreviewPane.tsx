@@ -1,15 +1,16 @@
 import type { PointerEvent } from "react";
 
 import { getAtlasFrameBySelection, getBizFileBySelection, getBizFrameBySelection, type MapCell } from "../app-utils";
-import { describeLegacyNodeType, type UiViewportNode } from "../view-model";
-import type { EditorDocument, GenericTextDocument, LegacyUILayoutNode } from "../types";
+import type { EditorDocument, GenericTextDocument, LegacyUILayoutNode, WorkspaceAsset } from "../types";
 import { AvatarPreviewCanvas } from "./AvatarPreviewCanvas";
 import { EmptyState } from "./EmptyState";
 import { EffectPreviewCanvas } from "./EffectPreviewCanvas";
+import { LegacyUiLayoutViewport } from "./LegacyUiLayoutViewport";
 import { MapDocumentCanvas } from "./MapDocumentCanvas";
 
 type PreviewPaneProps = {
   activeDocument: EditorDocument;
+  assets: WorkspaceAsset[];
   atlasFrameSelection: string | null;
   bizFileIndex: number;
   bizFrameId: number | null;
@@ -21,12 +22,12 @@ type PreviewPaneProps = {
   onMapPaint: (x: number, y: number) => void;
   onSelectUiNode: (nodeId: number) => void;
   selectedUiNodeId: number | null;
-  viewportNodes: UiViewportNode[];
-  onBeginUiDrag: (node: LegacyUILayoutNode, event: PointerEvent<HTMLButtonElement>) => void;
+  onBeginUiDrag: (node: LegacyUILayoutNode, event: PointerEvent<HTMLElement>) => void;
 };
 
 export function PreviewPane({
   activeDocument,
+  assets,
   atlasFrameSelection,
   bizFileIndex,
   bizFrameId,
@@ -38,7 +39,6 @@ export function PreviewPane({
   onMapPaint,
   onSelectUiNode,
   selectedUiNodeId,
-  viewportNodes,
   onBeginUiDrag
 }: PreviewPaneProps) {
   if (activeDocument.kind === "ui-layout") {
@@ -46,36 +46,15 @@ export function PreviewPane({
       <div className="workspace-surface">
         <div className="workspace-surface__header">
           <h3>UI Layout Viewport</h3>
-          <p>Drag nodes directly on the stage, then fine tune values in the Inspector.</p>
+          <p>Drag nodes directly on the stage, inspect actual resource usage, then fine tune values in the Inspector.</p>
         </div>
-        <div className="viewport">
-          <div className="viewport__stage">
-            {viewportNodes.map((node) => (
-              <button
-                key={node.id}
-                type="button"
-                className={`viewport-node viewport-node--type-${node.node.type}${
-                  selectedUiNodeId === node.id ? " viewport-node--selected" : ""
-                }`}
-                style={{
-                  height: `${node.height}px`,
-                  left: `${node.left}px`,
-                  top: `${node.top}px`,
-                  width: `${node.width}px`,
-                  zIndex: 20 + node.depth
-                }}
-                onClick={() => onSelectUiNode(node.id)}
-                onPointerDown={(event) => onBeginUiDrag(node.node, event)}
-                title={`${describeLegacyNodeType(node.node.type)} · ${Math.round(node.node.x ?? 0)}, ${Math.round(
-                  node.node.y ?? 0
-                )}`}
-              >
-                <span>{typeof node.node.n === "string" && node.node.n.trim() ? node.node.n : `Node${node.id}`}</span>
-                <small>{describeLegacyNodeType(node.node.type)}</small>
-              </button>
-            ))}
-          </div>
-        </div>
+        <LegacyUiLayoutViewport
+          document={activeDocument}
+          assets={assets}
+          selectedNodeId={selectedUiNodeId}
+          onSelectNode={onSelectUiNode}
+          onBeginDrag={onBeginUiDrag}
+        />
       </div>
     );
   }
