@@ -1,4 +1,5 @@
 import { describeMapCellValue, type MapCell } from "../app-utils";
+import { LEGACY_STATE_OPTIONS } from "../legacy-labs";
 import { describeLegacyNode } from "../view-model";
 import type { AtlasDocument, BizDocument, EditorDocument, LegacyUILayoutNode, UiLayoutDocument } from "../types";
 import { EmptyState } from "./EmptyState";
@@ -13,6 +14,8 @@ type InspectorPaneProps = {
   mapBrushValue: number;
   onChangeMapBrush: (value: number) => void;
   onChangeTextDocument: (text: string) => void;
+  onChangeAvatarDocument: (patch: { cloth?: number; weapon?: number; dir?: number; state?: number }) => void;
+  onChangeEffectDocument: (patch: { fileId?: number; dir?: number; delay?: number; loop?: boolean }) => void;
   onChangeUiFormat: (format: UiLayoutDocument["sourceFormat"]) => void;
   onUpdateUiNode: (key: keyof LegacyUILayoutNode, value: string | number | boolean) => void;
 };
@@ -27,6 +30,8 @@ export function InspectorPane({
   mapBrushValue,
   onChangeMapBrush,
   onChangeTextDocument,
+  onChangeAvatarDocument,
+  onChangeEffectDocument,
   onChangeUiFormat,
   onUpdateUiNode
 }: InspectorPaneProps) {
@@ -158,6 +163,63 @@ export function InspectorPane({
     );
   }
 
+  if (activeDocument.kind === "avatar-preview") {
+    const clothOptions = Array.from(new Set(Object.keys(activeDocument.clothImageAssets).map((value) => Math.floor(Number(value) / 100)))).sort((left, right) => left - right);
+    const weaponOptions = Array.from(new Set(Object.keys(activeDocument.weaponImageAssets).map((value) => Math.floor(Number(value) / 100)))).sort((left, right) => left - right);
+    return (
+      <div className="inspector">
+        <InspectorSection title="Avatar Lab">
+          <InspectorRow label="Cloth">
+            <select value={activeDocument.cloth} onChange={(event) => onChangeAvatarDocument({ cloth: Number(event.target.value) })}>
+              {clothOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </InspectorRow>
+          <InspectorRow label="Weapon">
+            <select value={activeDocument.weapon} onChange={(event) => onChangeAvatarDocument({ weapon: Number(event.target.value) })}>
+              {weaponOptions.length > 0 ? (
+                weaponOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))
+              ) : (
+                <option value={0}>0</option>
+              )}
+            </select>
+          </InspectorRow>
+          <InspectorRow label="State">
+            <select value={activeDocument.state} onChange={(event) => onChangeAvatarDocument({ state: Number(event.target.value) })}>
+              {LEGACY_STATE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </InspectorRow>
+          <InspectorRow label="Dir">
+            <select value={activeDocument.dir} onChange={(event) => onChangeAvatarDocument({ dir: Number(event.target.value) })}>
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index} value={index}>
+                  {index}
+                </option>
+              ))}
+            </select>
+          </InspectorRow>
+        </InspectorSection>
+        <InspectorSection title="Meta">
+          <InspectorRow label="gameinfo">{activeDocument.gameInfo.length}</InspectorRow>
+          <InspectorRow label="action">{activeDocument.actionInfo.length}</InspectorRow>
+          <InspectorRow label="cloth.biz">{activeDocument.clothBank.files.length}</InspectorRow>
+          <InspectorRow label="weapon.biz">{activeDocument.weaponBank?.files.length ?? 0}</InspectorRow>
+        </InspectorSection>
+      </div>
+    );
+  }
+
   if (activeDocument.kind === "biz") {
     return (
       <div className="inspector">
@@ -189,6 +251,50 @@ export function InspectorPane({
             <InspectorRow label="Rotated">{selectedBizFrame.rotated ? "true" : "false"}</InspectorRow>
           </InspectorSection>
         ) : null}
+      </div>
+    );
+  }
+
+  if (activeDocument.kind === "effect-preview") {
+    const effectOptions = Object.keys(activeDocument.effectImageAssets).map(Number).sort((left, right) => left - right);
+    return (
+      <div className="inspector">
+        <InspectorSection title="Effect Lab">
+          <InspectorRow label="FileId">
+            <select value={activeDocument.fileId} onChange={(event) => onChangeEffectDocument({ fileId: Number(event.target.value) })}>
+              {effectOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </InspectorRow>
+          <InspectorRow label="Dir">
+            <select value={activeDocument.dir} onChange={(event) => onChangeEffectDocument({ dir: Number(event.target.value) })}>
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index} value={index}>
+                  {index}
+                </option>
+              ))}
+            </select>
+          </InspectorRow>
+          <InspectorNumberField
+            label="Delay"
+            value={activeDocument.delay}
+            onChange={(value) => onChangeEffectDocument({ delay: value })}
+          />
+          <InspectorToggle
+            label="Loop"
+            value={activeDocument.loop}
+            onChange={(value) => onChangeEffectDocument({ loop: value })}
+          />
+        </InspectorSection>
+        <InspectorSection title="Meta">
+          <InspectorRow label="gameinfo">{activeDocument.gameInfo.length}</InspectorRow>
+          <InspectorRow label="effect">{activeDocument.effectInfo.length}</InspectorRow>
+          <InspectorRow label="nodir">{activeDocument.noDirIds.length}</InspectorRow>
+          <InspectorRow label="effect.biz">{activeDocument.effectBank.files.length}</InspectorRow>
+        </InspectorSection>
       </div>
     );
   }

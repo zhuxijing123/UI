@@ -15,6 +15,7 @@ The current milestone delivers the first working editor shell in React + Vite an
 ## Current Capabilities
 
 - File-system based workspace open via File System Access API
+- Directory import fallback for browser automation and read-only inspection
 - Asset scanning with legacy-aware type detection
 - Creator-style workbench layout:
   - top toolbar
@@ -39,6 +40,14 @@ The current milestone delivers the first working editor shell in React + Vite an
   - parse animation bank metadata
   - inspect file groups and frames
   - overlay selected frame on sibling image when available
+- Avatar Lab:
+  - parse `gameinfo.diz` and `action.diz`
+  - resolve cloth / weapon previews from `cloth.biz`, `weapon.biz`, `cloth/*.png`, `weapon/*.png`
+  - animate real avatar frames inside the workbench
+- Effect Lab:
+  - parse `effect.tiz` and `nodir.diz`
+  - resolve effect previews from `effect.biz` and `effect/*.png`
+  - animate real effect frames inside the workbench
 - MAPO editing:
   - parse logic grid
   - paint cell values
@@ -73,6 +82,8 @@ src/
       WelcomeHome.tsx
 scripts/
   smoke-editor.mjs
+fixtures/
+  legacy-sample/
 ```
 
 ## Development
@@ -97,9 +108,12 @@ Optional environment variables:
 ```bash
 BRM_UI_STUDIO_URL=http://127.0.0.1:3100
 BRM_UI_STUDIO_OUTDIR=./output/playwright
+BRM_UI_STUDIO_FIXTURE_DIR=./fixtures/legacy-sample
 ```
 
 Artifacts are written to `output/playwright/`.
+
+When `fixtures/legacy-sample/` exists, the smoke script automatically imports it and validates real legacy assets.
 
 Important workflow rule:
 
@@ -118,7 +132,9 @@ The current repository has been verified with:
 Smoke verification currently covers:
 
 - editor shell render
-- toolbar actions
+- folder import via `webkitdirectory`
+- Avatar Lab render on real legacy fixture assets
+- Effect Lab render on real legacy fixture assets
 - creating a new UI layout
 - entering UI viewport mode
 - adding a child node

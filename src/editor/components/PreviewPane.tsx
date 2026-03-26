@@ -3,7 +3,9 @@ import type { PointerEvent } from "react";
 import { getAtlasFrameBySelection, getBizFileBySelection, getBizFrameBySelection, type MapCell } from "../app-utils";
 import { describeLegacyNodeType, type UiViewportNode } from "../view-model";
 import type { EditorDocument, GenericTextDocument, LegacyUILayoutNode } from "../types";
+import { AvatarPreviewCanvas } from "./AvatarPreviewCanvas";
 import { EmptyState } from "./EmptyState";
+import { EffectPreviewCanvas } from "./EffectPreviewCanvas";
 import { MapDocumentCanvas } from "./MapDocumentCanvas";
 
 type PreviewPaneProps = {
@@ -132,6 +134,54 @@ export function PreviewPane({
     );
   }
 
+  if (activeDocument.kind === "avatar-preview") {
+    return (
+      <div className="workspace-surface workspace-surface--split">
+        <div className="workspace-surface__canvas">
+          <div className="workspace-surface__header">
+            <h3>Avatar Preview Lab</h3>
+            <p>Preview cloth and weapon frames with real `biz + png + gameinfo.diz + action.diz` data.</p>
+          </div>
+          <div className="animated-preview-stage">
+            <AvatarPreviewCanvas document={activeDocument} />
+          </div>
+        </div>
+        <div className="workspace-surface__sidebar">
+          <div className="workspace-surface__header">
+            <h3>Resources</h3>
+            <p>{Object.keys(activeDocument.clothImageAssets).length} cloth · {Object.keys(activeDocument.weaponImageAssets).length} weapon</p>
+          </div>
+          <ul className="frame-list">
+            <li>
+              <div className="frame-list__meta">
+                <strong>Cloth</strong>
+                <span>{activeDocument.cloth}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>Weapon</strong>
+                <span>{activeDocument.weapon}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>State</strong>
+                <span>{activeDocument.state}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>Dir</strong>
+                <span>{activeDocument.dir}</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
   if (activeDocument.kind === "biz") {
     const selectedFile = getBizFileBySelection(activeDocument, bizFileIndex);
     const selectedFrame = getBizFrameBySelection(selectedFile, bizFrameId);
@@ -211,6 +261,54 @@ export function PreviewPane({
               </ul>
             </>
           ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (activeDocument.kind === "effect-preview") {
+    return (
+      <div className="workspace-surface workspace-surface--split">
+        <div className="workspace-surface__canvas">
+          <div className="workspace-surface__header">
+            <h3>Effect Preview Lab</h3>
+            <p>Play effect sequences from `effect.biz`, `effect.tiz`, `gameinfo.diz` and `nodir.diz`.</p>
+          </div>
+          <div className="animated-preview-stage">
+            <EffectPreviewCanvas document={activeDocument} />
+          </div>
+        </div>
+        <div className="workspace-surface__sidebar">
+          <div className="workspace-surface__header">
+            <h3>Resources</h3>
+            <p>{Object.keys(activeDocument.effectImageAssets).length} effect sheets</p>
+          </div>
+          <ul className="frame-list">
+            <li>
+              <div className="frame-list__meta">
+                <strong>FileId</strong>
+                <span>{activeDocument.fileId}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>Dir</strong>
+                <span>{activeDocument.dir}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>Delay</strong>
+                <span>{activeDocument.delay}</span>
+              </div>
+            </li>
+            <li>
+              <div className="frame-list__meta">
+                <strong>Loop</strong>
+                <span>{activeDocument.loop ? "true" : "false"}</span>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     );

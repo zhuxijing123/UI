@@ -47,13 +47,18 @@ export type WorkspaceAssetKind =
   | "text"
   | "unknown";
 
+export type WorkspaceAssetSource = "fs-access" | "upload";
+
 export type WorkspaceAsset = {
   id: string;
   path: string;
   name: string;
   extension: string;
   kind: WorkspaceAssetKind;
-  handle: FileSystemFileHandle;
+  source: WorkspaceAssetSource;
+  writable: boolean;
+  handle: FileSystemFileHandle | null;
+  file: File | null;
 };
 
 export type AtlasFrameDocument = {
@@ -135,6 +140,54 @@ export type UiLayoutDocument = {
   nodes: LegacyUILayoutNode[];
 };
 
+export type LegacyGameInfoEntry = {
+  id: number;
+  scale: number;
+  nameY: number;
+  offX: number;
+  offY: number;
+};
+
+export type LegacySequenceEntry = {
+  id: number;
+  resCount: number;
+  frameCount: number;
+  frames: number[];
+};
+
+export type AvatarPreviewDocument = {
+  kind: "avatar-preview";
+  id: string;
+  name: string;
+  sourcePath: null;
+  cloth: number;
+  weapon: number;
+  dir: number;
+  state: number;
+  gameInfo: LegacyGameInfoEntry[];
+  actionInfo: LegacySequenceEntry[];
+  clothBank: BizDocument;
+  weaponBank: BizDocument | null;
+  clothImageAssets: Record<string, WorkspaceAsset>;
+  weaponImageAssets: Record<string, WorkspaceAsset>;
+};
+
+export type EffectPreviewDocument = {
+  kind: "effect-preview";
+  id: string;
+  name: string;
+  sourcePath: null;
+  fileId: number;
+  dir: number;
+  delay: number;
+  loop: boolean;
+  gameInfo: LegacyGameInfoEntry[];
+  effectInfo: LegacySequenceEntry[];
+  noDirIds: number[];
+  effectBank: BizDocument;
+  effectImageAssets: Record<string, WorkspaceAsset>;
+};
+
 export type GenericTextDocument = {
   kind: "text";
   id: string;
@@ -153,7 +206,9 @@ export type ImageDocument = {
 
 export type EditorDocument =
   | AtlasDocument
+  | AvatarPreviewDocument
   | BizDocument
+  | EffectPreviewDocument
   | GenericTextDocument
   | ImageDocument
   | MapDocument

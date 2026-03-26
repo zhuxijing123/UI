@@ -1,9 +1,11 @@
 import type { EditorDocument, ImageDocument, UiLayoutDocument, WorkspaceAsset, WorkspaceAssetKind } from "./types";
 import { parseAtlasDocument, parseBizDocument, parseLegacyUILayoutText, parseMapDocument } from "./formats";
 
-type WorkspaceScanResult = {
+export type WorkspaceScanResult = {
   assets: WorkspaceAsset[];
-  rootHandle: FileSystemDirectoryHandle;
+  rootHandle: FileSystemDirectoryHandle | null;
+  label: string;
+  writable: boolean;
 };
 
 function normalizePath(path: string): string {
@@ -33,11 +35,14 @@ async function* walkDirectory(handle: FileSystemDirectoryHandle, prefix = ""): A
     const extension = entryName.includes(".") ? entryName.slice(entryName.lastIndexOf(".")).toLowerCase() : "";
     yield {
       extension,
+      file: null,
       handle: fileHandle,
       id: normalizePath(relativePath),
       kind: detectAssetKind(relativePath, extension),
       name: entryName,
-      path: normalizePath(relativePath)
+      path: normalizePath(relativePath),
+      source: "fs-access",
+      writable: true
     };
   }
 }
@@ -57,7 +62,7 @@ export async function scanWorkspace(rootHandle: FileSystemDirectoryHandle): Prom
     assets.push(asset);
   }
   assets.sort((left, right) => left.path.localeCompare(right.path));
-  return { assets, rootHandle };
+  return { assets, label: rootHandle.name, rootHandle, writable: true };
 }
 
 export async function openWorkspaceDirectory(): Promise<WorkspaceScanResult> {
@@ -70,18 +75,68 @@ export async function openWorkspaceDirectory(): Promise<WorkspaceScanResult> {
   return scanWorkspace(rootHandle);
 }
 
-export async function readFileText(handle: FileSystemFileHandle): Promise<string> {
-  const file = await handle.getFile();
+async function getAssetFile(asset: WorkspaceAsset): Promise<File> {
+  if (asset.file) return asset.file;
+  if (asset.handle) return asset.handle.getFile();
+  throw new Error(`Asset file unavailable: ${asset.path}`);
+}
+
+export async function openWorkspaceFiles(fileList: FileList | File[], label?: string): Promise<WorkspaceScanResult> {
+  const files = Array.from(fileList);
+  const assets: WorkspaceAsset[] = files
+    .map((file) => {
+      const relativePath = normalizePath(file.webkitRelativePath || file.name);
+      const extension = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase() : "";
+      return {
+        extension,
+        file,
+        handle: null,
+        id: relativePath,
+        kind: detectAssetKind(relativePath, extension),
+        name: file.name,
+        path: relativePath,
+        source: "upload" as const,
+        writable: false
+      };
+    })
+    .filter((asset) => {
+      const normalized = asset.path.toLowerCase();
+      return (
+        !normalized.includes("/node_modules/") &&
+        !normalized.includes("/.git/") &&
+        !normalized.includes("/dist/") &&
+        !normalized.includes("/.next/")
+      );
+    })
+    .sort((left, right) => left.path.localeCompare(right.path));
+
+  const derivedLabel =
+    label ||
+    (() => {
+      const firstPath = assets[0]?.path ?? "";
+      return firstPath.includes("/") ? firstPath.split("/")[0] || "Imported Folder" : "Imported Folder";
+    })();
+
+  return {
+    assets,
+    label: derivedLabel,
+    rootHandle: null,
+    writable: false
+  };
+}
+
+export async function readAssetText(asset: WorkspaceAsset): Promise<string> {
+  const file = await getAssetFile(asset);
   return file.text();
 }
 
-export async function readFileBuffer(handle: FileSystemFileHandle): Promise<ArrayBuffer> {
-  const file = await handle.getFile();
+export async function readAssetBuffer(asset: WorkspaceAsset): Promise<ArrayBuffer> {
+  const file = await getAssetFile(asset);
   return file.arrayBuffer();
 }
 
-export async function createObjectUrl(handle: FileSystemFileHandle): Promise<string> {
-  const file = await handle.getFile();
+export async function createAssetObjectUrl(asset: WorkspaceAsset): Promise<string> {
+  const file = await getAssetFile(asset);
   return URL.createObjectURL(file);
 }
 
@@ -111,7 +166,7 @@ function findSiblingImageAsset(asset: WorkspaceAsset, assets: WorkspaceAsset[]):
 export async function openAssetDocument(asset: WorkspaceAsset, assets: WorkspaceAsset[]): Promise<EditorDocument> {
   const id = slugId(asset.path);
   if (asset.kind === "ui-layout") {
-    const text = await readFileText(asset.handle);
+    const text = await readAssetText(asset);
     const sourceFormat = asset.extension === ".lua" ? "lua" : "json";
     const document: UiLayoutDocument = {
       id,
@@ -124,32 +179,32 @@ export async function openAssetDocument(asset: WorkspaceAsset, assets: Workspace
     return document;
   }
   if (asset.kind === "atlas") {
-    const text = await readFileText(asset.handle);
+    const text = await readAssetText(asset);
     const imageAsset = findSiblingImageAsset(asset, assets);
-    const imageUrl = imageAsset ? await createObjectUrl(imageAsset.handle) : null;
+    const imageUrl = imageAsset ? await createAssetObjectUrl(imageAsset) : null;
     const atlas = parseAtlasDocument(id, asset.name, asset.path, text, imageAsset?.handle ?? null, imageUrl);
     return atlas;
   }
   if (asset.kind === "biz") {
     const imageAsset = findSiblingImageAsset(asset, assets);
-    const imageUrl = imageAsset ? await createObjectUrl(imageAsset.handle) : null;
+    const imageUrl = imageAsset ? await createAssetObjectUrl(imageAsset) : null;
     return parseBizDocument(
       id,
       asset.name,
       asset.path,
-      await readFileBuffer(asset.handle),
+      await readAssetBuffer(asset),
       imageAsset?.handle ?? null,
       imageAsset?.path ?? null,
       imageUrl
     );
   }
   if (asset.kind === "map") {
-    return parseMapDocument(id, asset.name, asset.path, await readFileBuffer(asset.handle));
+    return parseMapDocument(id, asset.name, asset.path, await readAssetBuffer(asset));
   }
   if (asset.kind === "image") {
     const document: ImageDocument = {
       id,
-      imageUrl: await createObjectUrl(asset.handle),
+      imageUrl: await createAssetObjectUrl(asset),
       kind: "image",
       name: asset.name,
       sourcePath: asset.path
@@ -161,6 +216,6 @@ export async function openAssetDocument(asset: WorkspaceAsset, assets: Workspace
     kind: "text",
     name: asset.name,
     sourcePath: asset.path,
-    text: await readFileText(asset.handle)
+    text: await readAssetText(asset)
   };
 }

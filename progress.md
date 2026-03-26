@@ -81,3 +81,58 @@ Next
 - 给 `biz` 预览接入真实 png 定位规则和角色/怪物/特效专用控制面板
 - 给 `mapo` 接入 NPC / 传送 / 怪物覆盖层
 - 补 README/roadmap 后再做 git commit，并视网络权限情况推送到 GitHub
+
+2026-03-26 Avatar/Effect Lab
+- 已新增目录上传导入路径：
+  - 顶栏 `Import Folder`
+  - 隐藏输入 `#workspace-upload`
+  - `src/editor/workspace.ts` 已统一 `fs-access` / `upload` 两种资产来源
+- `WorkspaceAsset` 已支持：
+  - `source`
+  - `writable`
+  - `handle`
+  - `file`
+- 已新增旧资源实验室内核：
+  - `src/editor/legacy-labs.ts`
+  - 解析 `gameinfo.diz`
+  - 解析 `action.diz`
+  - 解析 `effect.tiz`
+  - 解析 `nodir.diz`
+  - 生成 Avatar Lab / Effect Lab 文档
+- 已新增专业预览组件：
+  - `src/editor/components/AvatarPreviewCanvas.tsx`
+  - `src/editor/components/EffectPreviewCanvas.tsx`
+- 已接入工作台：
+  - 顶栏按钮 `Avatar Lab`
+  - 顶栏按钮 `Effect Lab`
+  - `PreviewPane` / `InspectorPane` 已支持新文档类型
+- 已新增最小旧资源夹具：
+  - `fixtures/legacy-sample`
+  - 包含 `cloth.biz` / `weapon.biz` / `effect.biz`
+  - 包含 `gameinfo.diz` / `action.diz` / `effect.tiz` / `nodir.diz`
+  - 包含 `2000100.png` / `6000100.png` / `10001000.png`
+  - 包含 `50012.mapo`
+- 已升级真实浏览器冒烟：
+  - `scripts/smoke-editor.mjs` 现在会导入 `fixtures/legacy-sample`
+  - 会验证 `Avatar Lab`
+  - 会验证 `Effect Lab`
+  - 仍会验证 `New UI Layout`
+- 已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke` against `vite dev`
+  - `pnpm test:smoke` against `vite preview`
+- 新工件：
+  - `output/playwright/dev-imported.png`
+  - `output/playwright/dev-avatar-lab.png`
+  - `output/playwright/dev-effect-lab.png`
+  - `output/playwright/preview/dev-avatar-lab.png`
+  - `output/playwright/preview/dev-effect-lab.png`
+
+Next
+- 给 Avatar Lab 增加更完整的动作/方向/帧步进控制，不只依赖当前序列播放
+- 给 Effect Lab 增加技能 ID -> effect fileId 映射预览
+- 给导入工作区补 map overlay 数据读取，做 NPC / 传送 / 怪物覆盖层
+- 给目录上传模式补只读标识和保存提示
+- 继续抽取旧仓库 `LegacyUILayoutView`，让 UI 视口从简化框图升级为真实原版节点渲染

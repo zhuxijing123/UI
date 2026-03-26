@@ -5,6 +5,7 @@ import { chromium } from "playwright";
 
 const baseUrl = process.env.BRM_UI_STUDIO_URL ?? "http://127.0.0.1:3100";
 const outDir = process.env.BRM_UI_STUDIO_OUTDIR ?? path.join(process.cwd(), "output", "playwright");
+const fixtureDir = process.env.BRM_UI_STUDIO_FIXTURE_DIR ?? path.join(process.cwd(), "fixtures", "legacy-sample");
 
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -22,6 +23,20 @@ try {
   await page.goto(baseUrl, { waitUntil: "networkidle", timeout: 60000 });
   await page.locator(".toolbar__brand strong").waitFor({ timeout: 10000 });
   await page.screenshot({ path: path.join(outDir, "dev-home.png"), fullPage: true });
+
+  if (fs.existsSync(fixtureDir)) {
+    await page.locator("#workspace-upload").setInputFiles(fixtureDir);
+    await page.getByText(/Workspace: legacy-sample/i).waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(outDir, "dev-imported.png"), fullPage: true });
+
+    await page.getByRole("button", { name: "Avatar Lab" }).click();
+    await page.getByText("Avatar Preview Lab", { exact: true }).waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(outDir, "dev-avatar-lab.png"), fullPage: true });
+
+    await page.getByRole("button", { name: "Effect Lab" }).click();
+    await page.getByText("Effect Preview Lab", { exact: true }).waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(outDir, "dev-effect-lab.png"), fullPage: true });
+  }
 
   await page.getByRole("button", { name: "New UI Layout" }).click();
   await page.getByText("UI Layout Viewport", { exact: true }).waitFor({ timeout: 10000 });

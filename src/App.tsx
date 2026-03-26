@@ -19,10 +19,11 @@ import { InspectorPane } from "./editor/components/InspectorPane";
 import { PreviewPane } from "./editor/components/PreviewPane";
 import { WelcomeHome } from "./editor/components/WelcomeHome";
 import { buildUiHierarchy, serializeLegacyUILayout, serializeMapDocument } from "./editor/formats";
+import { createAvatarPreviewDocument, createEffectPreviewDocument } from "./editor/legacy-labs";
 import { createStarterUiLayoutDocument, STAGE_SIZE } from "./editor/presets";
 import type { AppLogEntry, DocumentTab, EditorDocument, LegacyUILayoutNode, WorkspaceAsset } from "./editor/types";
 import { createAssetTree, describeLegacyNode, filterAssetsByQuery, flattenUiViewportNodes } from "./editor/view-model";
-import { openAssetDocument, openWorkspaceDirectory, scanWorkspace, writeBinaryFile, writeTextFile } from "./editor/workspace";
+import { openAssetDocument, openWorkspaceDirectory, openWorkspaceFiles, scanWorkspace, writeBinaryFile, writeTextFile } from "./editor/workspace";
 
 type DragState = {
   docId: string;
@@ -35,6 +36,7 @@ type DragState = {
 
 function App() {
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [workspaceLabel, setWorkspaceLabel] = useState<string | null>(null);
   const [assets, setAssets] = useState<WorkspaceAsset[]>([]);
   const [tabs, setTabs] = useState<DocumentTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -53,6 +55,7 @@ function App() {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const newLayoutSeedRef = useRef(1);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const deferredAssetQuery = useDeferredValue(assetQuery);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.document.id === activeTabId) ?? null, [activeTabId, tabs]);
@@ -163,13 +166,13 @@ function App() {
         logs: logs.slice(-5).map((entry) => `${entry.level}:${entry.message}`),
         selectedAssetId,
         selectedUiNode: selectedUiNode ? describeLegacyNode(selectedUiNode) : null,
-        workspace: rootHandle?.name ?? null
+        workspace: workspaceLabel
       });
     return () => {
       api.advanceTime = undefined;
       api.render_game_to_text = undefined;
     };
-  }, [activeDocument, activeTab?.dirty, assets.length, logs, rootHandle, selectedAssetId, selectedUiNode, tabs]);
+  }, [activeDocument, activeTab?.dirty, assets.length, logs, selectedAssetId, selectedUiNode, tabs, workspaceLabel]);
 
   const replaceDocument = (documentId: string, updater: (document: EditorDocument) => EditorDocument): void => {
     setTabs((current) =>
@@ -183,13 +186,34 @@ function App() {
       const result = await openWorkspaceDirectory();
       startTransition(() => {
         setRootHandle(result.rootHandle);
+        setWorkspaceLabel(result.label);
         setAssets(result.assets);
         setSelectedAssetId(result.assets[0]?.id ?? null);
       });
-      appendLog("info", `Workspace loaded: ${result.rootHandle.name} (${result.assets.length} assets)`);
+      appendLog("info", `Workspace loaded: ${result.label} (${result.assets.length} assets)`);
     } catch (error) {
       appendLog("error", `Open workspace failed: ${formatErrorMessage(error)}`);
     } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleImportWorkspaceFiles = async (files: FileList | null): Promise<void> => {
+    if (!files || files.length <= 0) return;
+    setBusyAction("Import Folder");
+    try {
+      const result = await openWorkspaceFiles(files);
+      startTransition(() => {
+        setRootHandle(null);
+        setWorkspaceLabel(result.label);
+        setAssets(result.assets);
+        setSelectedAssetId(result.assets[0]?.id ?? null);
+      });
+      appendLog("info", `Imported folder: ${result.label} (${result.assets.length} assets, read-only)`);
+    } catch (error) {
+      appendLog("error", `Import folder failed: ${formatErrorMessage(error)}`);
+    } finally {
+      if (uploadInputRef.current) uploadInputRef.current.value = "";
       setBusyAction(null);
     }
   };
@@ -249,6 +273,44 @@ function App() {
     appendLog("info", `Created new UI layout document: ${document.name}`);
   };
 
+  const handleOpenAvatarLab = async (): Promise<void> => {
+    const existing = tabs.find((tab) => tab.document.kind === "avatar-preview");
+    if (existing) {
+      setActiveTabId(existing.document.id);
+      return;
+    }
+    setBusyAction("Open Avatar Lab");
+    try {
+      const document = await createAvatarPreviewDocument(assets);
+      setTabs((current) => [...current, { asset: null, dirty: false, document }]);
+      setActiveTabId(document.id);
+      appendLog("info", "Avatar Lab opened from current workspace assets.");
+    } catch (error) {
+      appendLog("error", `Avatar Lab failed: ${formatErrorMessage(error)}`);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleOpenEffectLab = async (): Promise<void> => {
+    const existing = tabs.find((tab) => tab.document.kind === "effect-preview");
+    if (existing) {
+      setActiveTabId(existing.document.id);
+      return;
+    }
+    setBusyAction("Open Effect Lab");
+    try {
+      const document = await createEffectPreviewDocument(assets);
+      setTabs((current) => [...current, { asset: null, dirty: false, document }]);
+      setActiveTabId(document.id);
+      appendLog("info", "Effect Lab opened from current workspace assets.");
+    } catch (error) {
+      appendLog("error", `Effect Lab failed: ${formatErrorMessage(error)}`);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const handleSaveActiveDocument = async (): Promise<void> => {
     if (!activeTab) {
       appendLog("warn", "Save ignored because there is no active document.");
@@ -304,11 +366,23 @@ function App() {
         <div className="toolbar__brand"><div className="toolbar__badge">BRM</div><div><strong>UI Studio</strong><p>Legacy UI / Atlas / BIZ / MAPO integrated editor</p></div></div>
         <div className="toolbar__actions">
           <button type="button" className="toolbar__button toolbar__button--primary" onClick={handleOpenWorkspace}>Open Workspace</button>
+          <button type="button" className="toolbar__button" onClick={() => uploadInputRef.current?.click()}>Import Folder</button>
           <button type="button" className="toolbar__button" onClick={handleRescanWorkspace}>Rescan</button>
           <button type="button" className="toolbar__button" onClick={handleCreateUiDocument}>New UI Layout</button>
+          <button type="button" className="toolbar__button" disabled={assets.length <= 0} onClick={() => { void handleOpenAvatarLab(); }}>Avatar Lab</button>
+          <button type="button" className="toolbar__button" disabled={assets.length <= 0} onClick={() => { void handleOpenEffectLab(); }}>Effect Lab</button>
           <button type="button" className="toolbar__button" onClick={handleSaveActiveDocument}>Save</button>
         </div>
-        <div className="toolbar__status"><span>{rootHandle ? `Workspace: ${rootHandle.name}` : "No workspace mounted"}</span><span>{assets.length} assets</span><span>{busyAction ?? "Idle"}</span></div>
+        <div className="toolbar__status"><span>{workspaceLabel ? `Workspace: ${workspaceLabel}` : "No workspace mounted"}</span><span>{assets.length} assets</span><span>{busyAction ?? "Idle"}</span></div>
+        <input
+          ref={uploadInputRef}
+          id="workspace-upload"
+          hidden
+          multiple
+          type="file"
+          onChange={(event) => { void handleImportWorkspaceFiles(event.target.files); }}
+          {...({ webkitdirectory: "" } as { webkitdirectory: string })}
+        />
       </header>
       <main className="workspace-grid">
         <section className="panel panel--asset-browser">
@@ -326,7 +400,7 @@ function App() {
         </section>
         <section className="panel panel--inspector">
           <div className="panel__header"><div><h2>Inspector</h2><p>Document metadata and editable properties.</p></div>{activeDocument ? <span className="panel__meta">{activeDocument.kind}</span> : null}</div>
-          <div className="panel__body panel__body--scroll"><InspectorPane activeDocument={activeDocument} mapBrushValue={mapBrushValue} onChangeMapBrush={setMapBrushValue} onChangeTextDocument={(text) => activeDocument?.kind === "text" ? replaceDocument(activeDocument.id, (document) => document.kind === "text" ? { ...document, text } : document) : undefined} onChangeUiFormat={(format) => activeDocument?.kind === "ui-layout" ? replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, sourceFormat: format } : document) : undefined} onUpdateUiNode={handleUpdateUiNode} selectedAtlasFrame={selectedAtlasFrame} selectedBizDocumentFile={selectedBizFile} selectedBizFrame={selectedBizFrame} selectedMapCell={selectedMapCell} selectedUiNode={selectedUiNode} /></div>
+          <div className="panel__body panel__body--scroll"><InspectorPane activeDocument={activeDocument} mapBrushValue={mapBrushValue} onChangeMapBrush={setMapBrushValue} onChangeTextDocument={(text) => activeDocument?.kind === "text" ? replaceDocument(activeDocument.id, (document) => document.kind === "text" ? { ...document, text } : document) : undefined} onChangeAvatarDocument={(patch) => activeDocument?.kind === "avatar-preview" ? replaceDocument(activeDocument.id, (document) => document.kind === "avatar-preview" ? { ...document, ...patch } : document) : undefined} onChangeEffectDocument={(patch) => activeDocument?.kind === "effect-preview" ? replaceDocument(activeDocument.id, (document) => document.kind === "effect-preview" ? { ...document, ...patch } : document) : undefined} onChangeUiFormat={(format) => activeDocument?.kind === "ui-layout" ? replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, sourceFormat: format } : document) : undefined} onUpdateUiNode={handleUpdateUiNode} selectedAtlasFrame={selectedAtlasFrame} selectedBizDocumentFile={selectedBizFile} selectedBizFrame={selectedBizFrame} selectedMapCell={selectedMapCell} selectedUiNode={selectedUiNode} /></div>
         </section>
         <section className="panel panel--logs">
           <div className="panel__header"><div><h2>Logs</h2><p>Build, parsing and workflow events.</p></div><button type="button" className="chip" onClick={() => setLogs([])}>Clear</button></div>
