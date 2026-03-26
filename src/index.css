@@ -1,0 +1,53 @@
+:root {
+  font-family: Bahnschrift, "Noto Sans SC", "Segoe UI", sans-serif;
+  line-height: 1.45;
+  font-weight: 400;
+  color: #edf2ff;
+  background:
+    radial-gradient(circle at top left, rgba(78, 149, 217, 0.22), transparent 28%),
+    radial-gradient(circle at top right, rgba(247, 186, 98, 0.18), transparent 22%),
+    linear-gradient(180deg, #09111b, #05080d 68%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --panel: rgba(14, 21, 34, 0.84);
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #edf2ff;
+  --muted: #95a6bf;
+  --accent-soft: #f6c96d;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  appearance: none;
+}
+
+a {
+  color: inherit;
+}
+
+p {
+  margin: 0;
+}
