@@ -143,6 +143,10 @@ function LegacyUiLayoutNodePreview({
       data-node-id={node.node.id}
       data-node-name={node.node.n ?? node.node.id}
       style={buildNodeStyle(node.node, box)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectNode(node.node.id);
+      }}
       onPointerDown={(event) => {
         event.stopPropagation();
         onSelectNode(node.node.id);

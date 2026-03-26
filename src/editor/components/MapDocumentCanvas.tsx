@@ -104,6 +104,9 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
     <div className="map-canvas">
       <canvas
         ref={canvasRef}
+        data-logic-height={document.logicHeight}
+        data-logic-width={document.logicWidth}
+        data-map-name={document.name}
         onPointerDown={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           const x = Math.floor((event.clientX - rect.left) / cellSize);

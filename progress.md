@@ -170,12 +170,23 @@ Next
 - 已升级真实浏览器冒烟脚本：
   - 会打开 `sample-layout.json`
   - 会验证布局视口真实渲染
+  - 会验证节点 click 选中
+  - 会验证节点拖拽后坐标变化
   - 会打开 `50012.mapo`
   - 会验证 overlay 计数 `NPC 2 / Teleport 1 / Monster 1`
+  - 会验证 brush 切换到 `3`
+  - 会验证 `(0,0)` 格子被真正刷成 `3`
+  - 会验证 `Avatar Lab` 上点击 `Save` 时给出只读反馈
+  - 会验证 `New UI Layout` 默认选中 `PanelBg`
+  - 会验证 `Add Child` 新节点挂到 `PanelBg` 而不是根节点
   - 已新增 `scripts/run-smoke-sequential.mjs`
   - 自动选空闲端口
   - `vite` / `preview` 全部使用 `--strictPort`
   - 跑完自动清理子进程，避免遗留占口
+- 已新增本地 skill：
+  - `C:\Users\Administrator\.codex\skills\brm-ui-studio-workflow`
+  - 已通过 `quick_validate.py`
+  - 用于固化 BRM UI Studio 的 build + real smoke + artifact review 流程
 - 本轮已完成验证：
   - `pnpm typecheck`
   - `pnpm lint`

@@ -37,6 +37,7 @@ type DragState = {
 function App() {
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [workspaceLabel, setWorkspaceLabel] = useState<string | null>(null);
+  const [workspaceWritable, setWorkspaceWritable] = useState(false);
   const [assets, setAssets] = useState<WorkspaceAsset[]>([]);
   const [tabs, setTabs] = useState<DocumentTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -159,15 +160,35 @@ function App() {
         assetCount: assets.length,
         dirtyTabs: tabs.filter((tab) => tab.dirty).map((tab) => tab.document.name),
         logs: logs.slice(-5).map((entry) => `${entry.level}:${entry.message}`),
+        mapSelection:
+          activeDocument?.kind === "map" && selectedMapCell
+            ? {
+                value:
+                  activeDocument.blockData[selectedMapCell.y * activeDocument.logicWidth + selectedMapCell.x] ?? null,
+                x: selectedMapCell.x,
+                y: selectedMapCell.y
+              }
+            : null,
         selectedAssetId,
-        selectedUiNode: selectedUiNode ? describeLegacyNode(selectedUiNode) : null,
-        workspace: workspaceLabel
+        selectedUiNode: selectedUiNode
+          ? {
+              description: describeLegacyNode(selectedUiNode),
+              h: Number(selectedUiNode.h ?? 0),
+              id: selectedUiNode.id,
+              parent: selectedUiNode.parent,
+              w: Number(selectedUiNode.w ?? 0),
+              x: Number(selectedUiNode.x ?? 0),
+              y: Number(selectedUiNode.y ?? 0)
+            }
+          : null,
+        workspace: workspaceLabel,
+        workspaceWritable
       });
     return () => {
       api.advanceTime = undefined;
       api.render_game_to_text = undefined;
     };
-  }, [activeDocument, activeTab?.dirty, assets.length, logs, selectedAssetId, selectedUiNode, tabs, workspaceLabel]);
+  }, [activeDocument, activeTab?.dirty, assets.length, logs, selectedAssetId, selectedMapCell, selectedUiNode, tabs, workspaceLabel, workspaceWritable]);
 
   const replaceDocument = (documentId: string, updater: (document: EditorDocument) => EditorDocument): void => {
     setTabs((current) =>
@@ -182,6 +203,7 @@ function App() {
       startTransition(() => {
         setRootHandle(result.rootHandle);
         setWorkspaceLabel(result.label);
+        setWorkspaceWritable(result.writable);
         setAssets(result.assets);
         setSelectedAssetId(result.assets[0]?.id ?? null);
       });
@@ -201,6 +223,7 @@ function App() {
       startTransition(() => {
         setRootHandle(null);
         setWorkspaceLabel(result.label);
+        setWorkspaceWritable(result.writable);
         setAssets(result.assets);
         setSelectedAssetId(result.assets[0]?.id ?? null);
       });
@@ -264,7 +287,7 @@ function App() {
     const document = createStarterUiLayoutDocument(seed);
     setTabs((current) => [...current, { asset: null, dirty: true, document }]);
     setActiveTabId(document.id);
-    setSelectedUiNodeIdByDoc((current) => ({ ...current, [document.id]: document.nodes[0]?.id ?? null }));
+    setSelectedUiNodeIdByDoc((current) => ({ ...current, [document.id]: document.nodes[1]?.id ?? document.nodes[0]?.id ?? null }));
     appendLog("info", `Created new UI layout document: ${document.name}`);
   };
 
@@ -319,6 +342,13 @@ function App() {
     setBusyAction(`Save ${currentDocument.name}`);
     try {
       const existingHandle = activeTab.asset?.handle ?? null;
+      if (!existingHandle && activeTab.asset?.source === "upload" && !window.showSaveFilePicker) {
+        appendLog("warn", "Imported folders are read-only in this browser. Use Open Workspace or a browser with Save As support.");
+        return;
+      }
+      if (!existingHandle && activeTab.asset?.source === "upload") {
+        appendLog("info", `Read-only import detected for ${currentDocument.name}. Save will use Save As.`);
+      }
       const pickedHandle = existingHandle ?? (window.showSaveFilePicker ? await window.showSaveFilePicker({
         id: "brm-ui-studio-save",
         suggestedName: currentDocument.name,
@@ -368,7 +398,7 @@ function App() {
           <button type="button" className="toolbar__button" disabled={assets.length <= 0} onClick={() => { void handleOpenEffectLab(); }}>Effect Lab</button>
           <button type="button" className="toolbar__button" onClick={handleSaveActiveDocument}>Save</button>
         </div>
-        <div className="toolbar__status"><span>{workspaceLabel ? `Workspace: ${workspaceLabel}` : "No workspace mounted"}</span><span>{assets.length} assets</span><span>{busyAction ?? "Idle"}</span></div>
+        <div className="toolbar__status"><span>{workspaceLabel ? `Workspace: ${workspaceLabel}` : "No workspace mounted"}</span><span>{workspaceLabel ? (workspaceWritable ? "writable" : "read-only") : "detached"}</span><span>{assets.length} assets</span><span>{busyAction ?? "Idle"}</span></div>
         <input
           ref={uploadInputRef}
           id="workspace-upload"
@@ -387,10 +417,10 @@ function App() {
         </section>
         <section className="panel panel--center">
           <div className="tabs">{tabs.length > 0 ? tabs.map((tab) => <button key={tab.document.id} type="button" className={`tab${tab.document.id === activeTabId ? " tab--active" : ""}`} onClick={() => setActiveTabId(tab.document.id)}><span>{tab.document.name}</span>{tab.dirty ? <span className="tab__dirty">•</span> : null}<span className="tab__close" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); handleCloseTab(tab.document.id); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleCloseTab(tab.document.id); } }}>×</span></button>) : <div className="tabs__placeholder">No document open</div>}</div>
-          <div className="panel__body panel__body--workspace">{activeDocument ? <PreviewPane activeDocument={activeDocument} assets={assets} atlasFrameSelection={activeDocument.kind === "atlas" ? selectedAtlasFrame?.name ?? null : null} bizFileIndex={activeDocument.kind === "biz" ? selectedBizFileByDoc[activeDocument.id] ?? 0 : 0} bizFrameId={activeDocument.kind === "biz" ? selectedBizFrame?.frameId ?? null : null} mapCellSelection={activeDocument.kind === "map" ? selectedMapCell : null} onAtlasFrameSelect={(frameName) => activeDocument.kind === "atlas" ? setSelectedAtlasFrameByDoc((current) => ({ ...current, [activeDocument.id]: frameName })) : undefined} onBizFileSelect={(fileIndex) => activeDocument.kind === "biz" ? setSelectedBizFileByDoc((current) => ({ ...current, [activeDocument.id]: fileIndex })) : undefined} onBizFrameSelect={(frameId) => activeDocument.kind === "biz" ? setSelectedBizFrameByDoc((current) => ({ ...current, [activeDocument.id]: frameId })) : undefined} onChangeTextDocument={(text) => activeDocument.kind === "text" ? replaceDocument(activeDocument.id, (document) => document.kind === "text" ? { ...document, text } : document) : undefined} onMapPaint={(x, y) => { if (activeDocument.kind !== "map") return; const index = y * activeDocument.logicWidth + x; if (index < 0 || index >= activeDocument.blockData.length) return; setSelectedMapCellByDoc((current) => ({ ...current, [activeDocument.id]: { x, y } })); replaceDocument(activeDocument.id, (document) => document.kind === "map" ? (() => { const next = new Uint8Array(document.blockData); next[index] = mapBrushValue; return { ...document, blockData: next }; })() : document); }} onSelectUiNode={(nodeId) => activeDocument.kind === "ui-layout" ? setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nodeId })) : undefined} selectedUiNodeId={activeDocument.kind === "ui-layout" ? selectedUiNode?.id ?? null : null} onBeginUiDrag={(node, event) => { if (activeDocument.kind !== "ui-layout") return; event.preventDefault(); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: node.id })); setDragState({ docId: activeDocument.id, nodeId: node.id, originX: typeof node.x === "number" ? node.x : 0, originY: typeof node.y === "number" ? node.y : 0, pointerStartX: event.clientX, pointerStartY: event.clientY }); }} /> : <WelcomeHome onCreateUiDocument={handleCreateUiDocument} />}</div>
+          <div className="panel__body panel__body--workspace">{activeDocument ? <PreviewPane activeDocument={activeDocument} assets={assets} atlasFrameSelection={activeDocument.kind === "atlas" ? selectedAtlasFrame?.name ?? null : null} bizFileIndex={activeDocument.kind === "biz" ? selectedBizFileByDoc[activeDocument.id] ?? 0 : 0} bizFrameId={activeDocument.kind === "biz" ? selectedBizFrame?.frameId ?? null : null} mapCellSelection={activeDocument.kind === "map" ? selectedMapCell : null} onAtlasFrameSelect={(frameName) => activeDocument.kind === "atlas" ? setSelectedAtlasFrameByDoc((current) => ({ ...current, [activeDocument.id]: frameName })) : undefined} onBizFileSelect={(fileIndex) => activeDocument.kind === "biz" ? setSelectedBizFileByDoc((current) => ({ ...current, [activeDocument.id]: fileIndex })) : undefined} onBizFrameSelect={(frameId) => activeDocument.kind === "biz" ? setSelectedBizFrameByDoc((current) => ({ ...current, [activeDocument.id]: frameId })) : undefined} onChangeTextDocument={(text) => activeDocument.kind === "text" ? replaceDocument(activeDocument.id, (document) => document.kind === "text" ? { ...document, text } : document) : undefined} onMapPaint={(x, y) => { if (activeDocument.kind !== "map") return; const index = y * activeDocument.logicWidth + x; if (index < 0 || index >= activeDocument.blockData.length) return; setSelectedMapCellByDoc((current) => ({ ...current, [activeDocument.id]: { x, y } })); replaceDocument(activeDocument.id, (document) => document.kind === "map" ? (() => { const next = new Uint8Array(document.blockData); next[index] = mapBrushValue; return { ...document, blockData: next }; })() : document); appendLog("info", `Painted map cell ${x},${y} -> ${mapBrushValue}`); }} onSelectUiNode={(nodeId) => activeDocument.kind === "ui-layout" ? setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nodeId })) : undefined} selectedUiNodeId={activeDocument.kind === "ui-layout" ? selectedUiNode?.id ?? null : null} onBeginUiDrag={(node, event) => { if (activeDocument.kind !== "ui-layout") return; event.preventDefault(); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: node.id })); setDragState({ docId: activeDocument.id, nodeId: node.id, originX: typeof node.x === "number" ? node.x : 0, originY: typeof node.y === "number" ? node.y : 0, pointerStartX: event.clientX, pointerStartY: event.clientY }); }} /> : <WelcomeHome onCreateUiDocument={handleCreateUiDocument} />}</div>
         </section>
         <section className="panel panel--hierarchy">
-          <div className="panel__header"><div><h2>Hierarchy</h2><p>Node tree and document structure.</p></div>{activeDocument?.kind === "ui-layout" ? <div className="panel__actions"><button type="button" className="chip" onClick={() => { const parentId = selectedUiNode?.id ?? activeDocument.nodes[0]?.id ?? 0; const nextId = Math.max(0, ...activeDocument.nodes.map((node) => node.id)) + 1; replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, nodes: [...document.nodes, { id: nextId, parent: parentId, type: 1, n: `Node${nextId}`, x: 24, y: -24, w: 120, h: 48, ax: 0.5, ay: 0.5, color: "#2E4B6B" }] } : document); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nextId })); appendLog("info", `Added child node ${nextId} under ${parentId}`); }}>Add Child</button><button type="button" className="chip chip--danger" onClick={() => { if (!selectedUiNode || selectedUiNode.parent === 0) { appendLog("warn", "Root UI node cannot be removed."); return; } const removedIds = collectDescendantIds(activeDocument.nodes, selectedUiNode.id); replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, nodes: document.nodes.filter((node) => !removedIds.has(node.id)) } : document); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: activeDocument.nodes.find((node) => !removedIds.has(node.id))?.id ?? null })); appendLog("info", `Removed ${removedIds.size} UI node(s) from layout.`); }}>Remove</button></div> : null}</div>
+          <div className="panel__header"><div><h2>Hierarchy</h2><p>Node tree and document structure.</p></div>{activeDocument?.kind === "ui-layout" ? <div className="panel__actions"><button type="button" className="chip" onClick={() => { const parentNode = selectedUiNode ?? activeDocument.nodes[0] ?? null; const parentId = parentNode?.id ?? 0; const nextId = Math.max(0, ...activeDocument.nodes.map((node) => node.id)) + 1; const parentWidth = Math.max(120, Number(parentNode?.w ?? 240)); const parentHeight = Math.max(80, Number(parentNode?.h ?? 120)); const childWidth = 120; const childHeight = 48; replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, nodes: [...document.nodes, { id: nextId, parent: parentId, type: 1, n: `Node${nextId}`, x: Math.round(parentWidth / 2), y: Math.round(parentHeight / 2), w: childWidth, h: childHeight, ax: 0.5, ay: 0.5, color: "#2E4B6B" }] } : document); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nextId })); appendLog("info", `Added child node ${nextId} under ${parentId}`); }}>Add Child</button><button type="button" className="chip chip--danger" onClick={() => { if (!selectedUiNode || selectedUiNode.parent === 0) { appendLog("warn", "Root UI node cannot be removed."); return; } const removedIds = collectDescendantIds(activeDocument.nodes, selectedUiNode.id); replaceDocument(activeDocument.id, (document) => document.kind === "ui-layout" ? { ...document, nodes: document.nodes.filter((node) => !removedIds.has(node.id)) } : document); setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: activeDocument.nodes.find((node) => !removedIds.has(node.id))?.id ?? null })); appendLog("info", `Removed ${removedIds.size} UI node(s) from layout.`); }}>Remove</button></div> : null}</div>
           <div className="panel__body panel__body--scroll">{activeDocument?.kind === "ui-layout" ? <HierarchyTree roots={uiHierarchy} selectedNodeId={selectedUiNode?.id ?? null} onSelectNode={(nodeId) => setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nodeId }))} /> : <EmptyState title="Hierarchy unavailable" body="Open a UI layout document to inspect node relationships and edit the scene graph." />}</div>
         </section>
         <section className="panel panel--inspector">

@@ -146,10 +146,14 @@ Smoke verification currently covers:
 - editor shell render
 - folder import via `webkitdirectory`
 - imported legacy layout preview render
+- viewport node selection and drag coordinate updates
 - map overlay render from `long/*.csv`
+- map brush change and logic-cell paint verification
 - Avatar Lab render on real legacy fixture assets
+- read-only save feedback on non-savable document types
 - Effect Lab render on real legacy fixture assets
 - creating a new UI layout
+- starter layout auto-selection of the main editable panel
 - entering UI viewport mode
 - adding a child node
 - screenshot capture
