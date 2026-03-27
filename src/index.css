@@ -1,23 +1,162 @@
+/* ============================================
+   Cocos Creator 3.8 Style Design Tokens
+   ============================================ */
+
 :root {
-  font-family: Bahnschrift, "Noto Sans SC", "Segoe UI", sans-serif;
-  line-height: 1.45;
-  font-weight: 400;
-  color: #edf2ff;
-  background:
-    radial-gradient(circle at top left, rgba(78, 149, 217, 0.22), transparent 28%),
-    radial-gradient(circle at top right, rgba(247, 186, 98, 0.18), transparent 22%),
-    linear-gradient(180deg, #09111b, #05080d 68%);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  --panel: rgba(14, 21, 34, 0.84);
+  /* ==================== Color Palette ==================== */
+
+  /* Background Layers - 从深到浅 */
+  --color-bg-base: #1a1d23;
+  --color-bg-elevated: #22262e;
+  --color-bg-surface: #2a2f38;
+  --color-bg-overlay: #323841;
+  --color-bg-hover: #3a404a;
+  --color-bg-active: #424850;
+
+  /* Panel Gradients */
+  --panel-gradient-header: linear-gradient(180deg, #353c46, #2d343d);
+  --panel-gradient-body: linear-gradient(180deg, #252c35, #1f252d);
+  --panel-gradient-active: linear-gradient(180deg, #404c59, #36414d);
+  --panel-gradient-tab: linear-gradient(180deg, #3c4653, #313945);
+  --panel-gradient-button: linear-gradient(180deg, #343d49, #2a323d);
+  --panel-gradient-button-hover: linear-gradient(180deg, #3c4653, #313945);
+  --panel-gradient-primary: linear-gradient(180deg, #3a8be0, #2a6da8);
+
+  /* Border Colors */
+  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-border-emphasis: rgba(255, 255, 255, 0.1);
+  --color-border-active: rgba(102, 167, 255, 0.4);
+  --color-border-strong: rgba(0, 0, 0, 0.55);
+
+  /* Text Colors */
+  --color-text-primary: #e8ecf2;
+  --color-text-secondary: #9ca3b0;
+  --color-text-tertiary: #6b7280;
+  --color-text-inverse: #1a1d23;
+  --color-text-hover: #f5f8fd;
+
+  /* Accent Colors */
+  --color-accent-primary: #66a7ff;
+  --color-accent-primary-hover: #7db8ff;
+  --color-accent-primary-active: #4d96ff;
+  --color-accent-warning: #f0c279;
+  --color-accent-success: #4ade80;
+  --color-accent-error: #f87171;
+
+  /* Dock Label Colors */
+  --dock-color-default: #d4a76a;
+  --dock-color-scene: #d4a76a;
+
+  /* Tree Icon Colors */
+  --tree-icon-folder: #6d5734;
+  --tree-icon-ui: #34475d;
+  --tree-icon-atlas: #4a5568;
+  --tree-icon-map: #2d4a3e;
+  --tree-icon-text: #4a4a5a;
+
+  /* Scene Colors */
+  --color-scene-grid: rgba(255, 255, 255, 0.03);
+  --color-scene-origin: #66a7ff;
+  --color-selection-primary: #f0c279;
+  --color-selection-secondary: rgba(240, 194, 121, 0.3);
+
+  /* ==================== Typography ==================== */
+  --font-family-base: Bahnschrift, "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+  --font-family-mono: Consolas, "JetBrains Mono", "SF Mono", monospace;
+
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-md: 12px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.45;
+  --line-height-relaxed: 1.6;
+
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+  --letter-spacing-wider: 0.08em;
+
+  /* ==================== Spacing ==================== */
+  --spacing-1: 2px;
+  --spacing-2: 4px;
+  --spacing-3: 6px;
+  --spacing-4: 8px;
+  --spacing-5: 10px;
+  --spacing-6: 12px;
+  --spacing-8: 16px;
+  --spacing-10: 20px;
+  --spacing-12: 24px;
+
+  /* ==================== Sizing ==================== */
+  --size-menubar-height: 28px;
+  --size-toolbar-height: 36px;
+  --size-panel-header: 32px;
+  --size-panel-dock: 24px;
+  --size-tab-height: 28px;
+  --size-splitter-width: 6px;
+  --size-splitter-hover: 8px;
+
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+
+  --size-button-sm: 24px;
+  --size-button-md: 28px;
+  --size-button-lg: 32px;
+
+  /* ==================== Border Radius ==================== */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-full: 9999px;
+
+  /* ==================== Shadows ==================== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 18px 40px rgba(0, 0, 0, 0.45);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 24px 56px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* ==================== Transitions ==================== */
+  --transition-fast: 100ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow: 200ms ease;
+
+  /* ==================== Z-Index Scale ==================== */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-panel-dock: 300;
+  --z-menu: 400;
+  --z-modal-backdrop: 500;
+  --z-modal: 600;
+  --z-tooltip: 700;
+
+  /* ==================== Legacy Compatibility ==================== */
+  --panel: #252c35;
   --line: rgba(255, 255, 255, 0.08);
-  --text: #edf2ff;
-  --muted: #95a6bf;
-  --accent-soft: #f6c96d;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #e7edf7;
+  --muted: #93a0b2;
+  --accent-soft: #f0c279;
+  --accent-blue: #66a7ff;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
+
+/* ==================== Base Reset ==================== */
 
 * {
   box-sizing: border-box;
@@ -31,6 +170,16 @@ body,
 
 body {
   margin: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-primary);
+  background: var(--color-bg-base);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -42,12 +191,74 @@ textarea {
 
 button {
   appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
 p {
   margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ==================== Focus Styles ==================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* ==================== Scrollbar Styles ==================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* ==================== Selection Styles ==================== */
+
+::selection {
+  background: rgba(102, 167, 255, 0.3);
+  color: var(--color-text-primary);
 }

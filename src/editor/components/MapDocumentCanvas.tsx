@@ -1,16 +1,35 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getMapColor, type MapCell } from "../app-utils";
 import type { MapDocument } from "../types";
 
 type MapCanvasProps = {
   document: MapDocument;
+  interactionMode: "scene" | "preview";
+  sceneTool: "hand" | "move" | "rotate" | "scale" | "rect";
   selectedCell: MapCell | null;
+  zoomMode: "fit" | "100";
   onPaint: (x: number, y: number) => void;
 };
 
-export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvasProps) {
+export function MapDocumentCanvas({
+  document,
+  interactionMode,
+  sceneTool,
+  selectedCell,
+  zoomMode,
+  onPaint
+}: MapCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const panStateRef = useRef<{
+    pointerId: number;
+    scrollLeft: number;
+    scrollTop: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const [viewportSize, setViewportSize] = useState({ height: 0, width: 0 });
   const cellSize = useMemo(() => {
     const maxWidth = 880;
     const maxHeight = 520;
@@ -18,12 +37,40 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
     const heightSize = Math.floor(maxHeight / Math.max(1, document.logicHeight));
     return Math.max(1, Math.min(16, widthSize, heightSize));
   }, [document.logicHeight, document.logicWidth]);
+  const overlayPreview = useMemo(() => document.overlays.slice(0, 6), [document.overlays]);
+  const canvasWidth = document.logicWidth * cellSize;
+  const canvasHeight = document.logicHeight * cellSize;
+  const stageScale = zoomMode === "100"
+    ? 1
+    : clamp(
+      Math.min(
+        viewportSize.width > 0 ? (viewportSize.width - 40) / Math.max(1, canvasWidth) : 1,
+        viewportSize.height > 0 ? (viewportSize.height - 40) / Math.max(1, canvasHeight) : 1
+      ),
+      0.35,
+      1
+    );
+
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+    const update = () => {
+      setViewportSize({
+        height: element.clientHeight,
+        width: element.clientWidth
+      });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const width = document.logicWidth * cellSize;
-    const height = document.logicHeight * cellSize;
+    const width = canvasWidth;
+    const height = canvasHeight;
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
@@ -98,22 +145,75 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
       }
       context.restore();
     }
-  }, [cellSize, document, selectedCell]);
+  }, [canvasHeight, canvasWidth, cellSize, document, selectedCell]);
 
   return (
     <div className="map-canvas">
-      <canvas
-        ref={canvasRef}
-        data-logic-height={document.logicHeight}
-        data-logic-width={document.logicWidth}
-        data-map-name={document.name}
+      <div
+        ref={viewportRef}
+        className={`map-canvas__viewport${sceneTool === "hand" ? " map-canvas__viewport--hand" : ""}`}
         onPointerDown={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const x = Math.floor((event.clientX - rect.left) / cellSize);
-          const y = Math.floor((event.clientY - rect.top) / cellSize);
-          onPaint(x, y);
+          if (sceneTool !== "hand") return;
+          const element = event.currentTarget;
+          panStateRef.current = {
+            pointerId: event.pointerId,
+            scrollLeft: element.scrollLeft,
+            scrollTop: element.scrollTop,
+            startX: event.clientX,
+            startY: event.clientY
+          };
+          element.setPointerCapture(event.pointerId);
         }}
-      />
+        onPointerMove={(event) => {
+          if (sceneTool !== "hand") return;
+          const state = panStateRef.current;
+          if (!state || state.pointerId !== event.pointerId) return;
+          const element = event.currentTarget;
+          element.scrollLeft = state.scrollLeft - (event.clientX - state.startX);
+          element.scrollTop = state.scrollTop - (event.clientY - state.startY);
+        }}
+        onPointerUp={(event) => {
+          if (panStateRef.current?.pointerId === event.pointerId) {
+            panStateRef.current = null;
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (panStateRef.current?.pointerId === event.pointerId) {
+            panStateRef.current = null;
+          }
+        }}
+      >
+        <div
+          className="map-canvas__camera"
+          style={{
+            height: `${canvasHeight * stageScale}px`,
+            width: `${canvasWidth * stageScale}px`
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="map-canvas__canvas"
+            data-logic-height={document.logicHeight}
+            data-logic-width={document.logicWidth}
+            data-map-name={document.name}
+            style={{
+              height: `${canvasHeight}px`,
+              transform: `scale(${stageScale})`,
+              transformOrigin: "top left",
+              width: `${canvasWidth}px`
+            }}
+            onPointerDown={(event) => {
+              if (interactionMode !== "scene" || sceneTool === "hand") return;
+              const rect = event.currentTarget.getBoundingClientRect();
+              const scaleX = event.currentTarget.width / Math.max(1, rect.width);
+              const scaleY = event.currentTarget.height / Math.max(1, rect.height);
+              const x = Math.floor(((event.clientX - rect.left) * scaleX) / cellSize);
+              const y = Math.floor(((event.clientY - rect.top) * scaleY) / cellSize);
+              onPaint(x, y);
+            }}
+          />
+        </div>
+      </div>
       <div className="map-canvas__summary">
         <div className="map-canvas__legend">
           <span className="map-canvas__legend-item map-canvas__legend-item--npc">NPC {document.overlaySummary.npc}</span>
@@ -124,6 +224,23 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
             Monster {document.overlaySummary.monster}
           </span>
         </div>
+        {overlayPreview.length > 0 ? (
+          <ul className="map-canvas__overlay-list">
+            {overlayPreview.map((overlay) => (
+              <li key={overlay.id} className={`map-canvas__overlay-item map-canvas__overlay-item--${overlay.kind}`}>
+                <strong>{overlay.label}</strong>
+                <span>{overlay.subtitle || `${overlay.x}, ${overlay.y}`}</span>
+                {overlay.details.map((detail) => (
+                  <small key={`${overlay.id}:${detail}`}>{detail}</small>
+                ))}
+                <small>
+                  {overlay.x}, {overlay.y}
+                  {overlay.targetMapName ? ` -> ${overlay.targetMapName}` : overlay.targetMapId ? ` -> ${overlay.targetMapId}` : ""}
+                </small>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {document.metadata ? (
           <p className="map-canvas__meta">
             {document.metadata.mapId} · {document.metadata.file} · {document.metadata.mapName || document.metadata.minimap}
@@ -134,4 +251,8 @@ export function MapDocumentCanvas({ document, selectedCell, onPaint }: MapCanvas
       </div>
     </div>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

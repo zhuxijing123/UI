@@ -3,9 +3,12 @@ import luaparse from "luaparse";
 import type {
   AtlasDocument,
   AtlasFrameDocument,
+  BitmapFontDocument,
   BizDocument,
   BizFileDocument,
   BizFrame,
+  LegacyBitmapFont,
+  LegacyBitmapFontChar,
   LegacyUILayoutNode,
   MapDocument,
   UiHierarchyNode
@@ -571,4 +574,103 @@ export function parseAtlasDocument(
     name,
     sourcePath
   };
+}
+
+export function parseBitmapFontText(text: string): LegacyBitmapFont {
+  const lines = (text ?? "")
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  let font = "";
+  let image = "";
+  let scaleW = 0;
+  let scaleH = 0;
+  let lineHeight = 0;
+  const chars = new Map<number, LegacyBitmapFontChar>();
+
+  for (const line of lines) {
+    if (line.startsWith("info ")) {
+      const kv = parseBitmapFontPairs(line);
+      if (typeof kv.face === "string") font = kv.face;
+      continue;
+    }
+    if (line.startsWith("common ")) {
+      const kv = parseBitmapFontPairs(line);
+      lineHeight = toInt(kv.lineHeight);
+      scaleW = toInt(kv.scaleW);
+      scaleH = toInt(kv.scaleH);
+      continue;
+    }
+    if (line.startsWith("page ")) {
+      const kv = parseBitmapFontPairs(line);
+      if (typeof kv.file === "string") image = kv.file;
+      continue;
+    }
+    if (line.startsWith("char ")) {
+      const kv = parseBitmapFontPairs(line);
+      const id = toInt(kv.id);
+      if (id < 0) continue;
+      chars.set(id, {
+        height: toInt(kv.height),
+        id,
+        width: toInt(kv.width),
+        x: toInt(kv.x),
+        xadvance: toInt(kv.xadvance),
+        xoffset: toInt(kv.xoffset),
+        y: toInt(kv.y),
+        yoffset: toInt(kv.yoffset)
+      });
+    }
+  }
+
+  if (!image) throw new Error("Bitmap font missing page.file");
+  if (scaleW <= 0 || scaleH <= 0 || lineHeight <= 0) throw new Error("Bitmap font metrics incomplete");
+
+  return {
+    chars,
+    font,
+    image,
+    lineHeight,
+    scaleH,
+    scaleW
+  };
+}
+
+export function parseBitmapFontDocument(
+  id: string,
+  name: string,
+  sourcePath: string,
+  text: string,
+  imagePath: string | null,
+  imageUrl: string | null
+): BitmapFontDocument {
+  return {
+    font: parseBitmapFontText(text),
+    id,
+    imagePath,
+    imageUrl,
+    kind: "bitmap-font",
+    name,
+    sourcePath
+  };
+}
+
+function parseBitmapFontPairs(line: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const expression = /([A-Za-z0-9_]+)=(".*?"|[^\s]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = expression.exec(line))) {
+    const key = match[1] ?? "";
+    let value = (match[2] ?? "").trim();
+    if (value.startsWith("\"") && value.endsWith("\"")) value = value.slice(1, -1);
+    if (key) out[key] = value;
+  }
+  return out;
+}
+
+function toInt(value: string | undefined): number {
+  if (!value) return 0;
+  const numeric = Number(value.trim());
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 }

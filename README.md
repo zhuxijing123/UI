@@ -17,6 +17,8 @@ The current milestone delivers the first working editor shell in React + Vite an
 - File-system based workspace open via File System Access API
 - Directory import fallback for browser automation and read-only inspection
 - Asset scanning with legacy-aware type detection
+  - `.fnt` bitmap font descriptors are imported as legacy text assets and usable by the layout viewport
+  - `.fnt` bitmap font descriptors can also be opened directly as dedicated preview documents
 - Creator-style workbench layout:
   - top toolbar
   - asset browser
@@ -31,12 +33,20 @@ The current milestone delivers the first working editor shell in React + Vite an
   - select nodes
   - drag nodes in the viewport
   - render imported legacy image assets directly inside the viewport
+  - resolve atlas frame names from imported `uipic/*.plist` / atlas data and crop them into viewport-ready previews
+  - render legacy bitmap-font labels from imported `.fnt + .png` pairs
+  - render legacy rich text and loading bar nodes inside the editor viewport
   - edit core properties in inspector
   - add / remove child nodes
   - save as `json` or `lua`
 - Atlas / plist inspection:
   - parse frames
   - overlay selected frame on the source image when available
+- Bitmap font inspection:
+  - open `.fnt` as a first-class document
+  - parse BMFont metrics and linked page image
+  - preview glyph sheet and printable sample text
+  - inspect glyph count, line height, scale and page file metadata
 - BIZ inspection:
   - parse animation bank metadata
   - inspect file groups and frames
@@ -53,6 +63,9 @@ The current milestone delivers the first working editor shell in React + Vite an
   - parse logic grid
   - decode legacy `long/*.csv` metadata with UTF-8 / GB18030 fallback
   - overlay NPC / teleport / monster points from `mapinfo.csv`, `npcgen.csv`, `mongen.csv`
+  - enrich monster overlays with `mondef.csv` names and model ids
+  - expose overlay summaries directly under the map canvas for deterministic inspection
+  - show teleport target map names plus script / openUI / talk metadata in the overlay detail list
   - paint cell values
   - save back as RLE-encoded `.mapo`
 - Text editing:
@@ -71,6 +84,7 @@ src/
   editor/
     app-utils.ts
     formats.ts
+    legacy-layout-resources.ts
     legacy-map-data.ts
     presets.ts
     types.ts
@@ -137,17 +151,23 @@ Important workflow rule:
 The current repository has been verified with:
 
 - `pnpm typecheck`
+- `pnpm lint`
 - `pnpm build`
-- `pnpm test:smoke` against a live `vite` dev server
-- `pnpm test:smoke` against a live `vite preview` server
+- `pnpm test:smoke:sequential`
 
 Smoke verification currently covers:
 
 - editor shell render
 - folder import via `webkitdirectory`
 - imported legacy layout preview render
+- atlas-frame backed layout image render
+- bitmap-font backed layout label render
+- direct bitmap-font document open and preview
+- rich text and loading bar render in the layout viewport
 - viewport node selection and drag coordinate updates
 - map overlay render from `long/*.csv`
+- monster overlay enrichment from `mondef.csv`
+- teleport overlay detail render from `mapinfo.csv` + `npcgen.csv`
 - map brush change and logic-cell paint verification
 - Avatar Lab render on real legacy fixture assets
 - read-only save feedback on non-savable document types

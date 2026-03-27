@@ -4,6 +4,7 @@ type LegacyNpcEntry = {
   id: number;
   mapId: string;
   name: string;
+  script: string;
   x: number;
   y: number;
   talkId: number;
@@ -22,6 +23,12 @@ type LegacyMonsterEntry = {
   radius: number;
   count: number;
   respawnSeconds: number;
+};
+
+type LegacyMonsterDefEntry = {
+  id: number;
+  model: number;
+  name: string;
 };
 
 type ParsedCsv = {
@@ -57,6 +64,7 @@ export function parseLegacyNpcText(text: string): LegacyNpcEntry[] {
       id: parseIntSafe(getCsvValue(table.headers, row, "id", 0)),
       mapId: getCsvValue(table.headers, row, "mapid", 4),
       name: getCsvValue(table.headers, row, "name", 1),
+      script: getCsvValue(table.headers, row, "script", 2),
       openUi: getCsvValue(table.headers, row, "openui", 16),
       talkId: parseIntSafe(getCsvValue(table.headers, row, "talkid", 14)),
       teleportMapId: getCsvValue(table.headers, row, "transmapid", 17),
@@ -84,19 +92,35 @@ export function parseLegacyMonsterText(text: string): LegacyMonsterEntry[] {
     .filter((entry) => entry.mapId.length > 0 && entry.monsterId > 0);
 }
 
+export function parseLegacyMonsterDefText(text: string): LegacyMonsterDefEntry[] {
+  const table = parseLegacyCsv(text);
+  return table.rows
+    .map((row) => ({
+      id: parseIntSafe(getCsvValue(table.headers, row, "id", 0)),
+      model: parseIntSafe(getCsvValue(table.headers, row, "model", 1)),
+      name: getCsvValue(table.headers, row, "name", 4)
+    }))
+    .filter((entry) => entry.id > 0);
+}
+
 export function attachLegacyMapData(
   document: MapDocument,
   mapInfoEntries: MapInfoEntry[],
   npcEntries: LegacyNpcEntry[],
-  monsterEntries: LegacyMonsterEntry[]
+  monsterEntries: LegacyMonsterEntry[],
+  monsterDefEntries: LegacyMonsterDefEntry[]
 ): MapDocument {
   const metadata = resolveMapInfo(document, mapInfoEntries);
   const matchKeys = buildMapMatchKeys(document, metadata);
   const overlays: MapOverlayEntry[] = [];
+  const monsterDefMap = new Map(monsterDefEntries.map((entry) => [entry.id, entry]));
+  const mapInfoByMapId = new Map(mapInfoEntries.map((entry) => [normalizeMapKey(entry.mapId), entry]));
 
   for (const npc of npcEntries) {
     if (!matchKeys.has(normalizeMapKey(npc.mapId))) continue;
+    const npcDetails = buildNpcDetails(npc);
     overlays.push({
+      details: npcDetails,
       id: `npc:${npc.id}`,
       kind: "npc",
       label: npc.name || `NPC ${npc.id}`,
@@ -104,11 +128,16 @@ export function attachLegacyMapData(
       sourceId: npc.id,
       subtitle: npc.openUi || (npc.talkId > 0 ? `Talk ${npc.talkId}` : "NPC"),
       targetMapId: null,
+      targetMapName: null,
       x: npc.x,
       y: npc.y
     });
     if (npc.teleportMapId && npc.teleportMapId !== "0") {
+      const targetMap = mapInfoByMapId.get(normalizeMapKey(npc.teleportMapId)) ?? null;
+      const targetLabel = targetMap?.mapName || targetMap?.minimap || npc.teleportMapId;
+      const teleportDetails = buildTeleportDetails(npc, targetLabel);
       overlays.push({
+        details: teleportDetails,
         id: `teleport:${npc.id}`,
         kind: "teleport",
         label: npc.name || `Teleport ${npc.id}`,
@@ -116,9 +145,10 @@ export function attachLegacyMapData(
         sourceId: npc.id,
         subtitle:
           npc.teleportX > 0 || npc.teleportY > 0
-            ? `${npc.teleportMapId} -> ${npc.teleportX}, ${npc.teleportY}`
-            : npc.teleportMapId,
+            ? `${targetLabel} -> ${npc.teleportX}, ${npc.teleportY}`
+            : targetLabel,
         targetMapId: npc.teleportMapId,
+        targetMapName: targetMap?.mapName ?? targetMap?.minimap ?? null,
         x: npc.x,
         y: npc.y
       });
@@ -127,17 +157,20 @@ export function attachLegacyMapData(
 
   for (const monster of monsterEntries) {
     if (!matchKeys.has(normalizeMapKey(monster.mapId))) continue;
+    const monsterDef = monsterDefMap.get(monster.monsterId);
     overlays.push({
+      details: buildMonsterDetails(monster, monsterDef),
       id: `monster:${monster.monsterId}:${monster.x}:${monster.y}`,
       kind: "monster",
-      label: `MON ${monster.monsterId}`,
+      label: monsterDef?.name || `MON ${monster.monsterId}`,
       radius: Math.max(1, monster.radius),
       sourceId: monster.monsterId,
       subtitle:
         monster.count > 0
-          ? `${monster.count} spawn · ${monster.respawnSeconds || 0}s`
-          : `${monster.respawnSeconds || 0}s respawn`,
+          ? `${monster.count} spawn · ${monster.respawnSeconds || 0}s${monsterDef?.model ? ` · model ${monsterDef.model}` : ""}`
+          : `${monster.respawnSeconds || 0}s respawn${monsterDef?.model ? ` · model ${monsterDef.model}` : ""}`,
       targetMapId: null,
+      targetMapName: null,
       x: monster.x,
       y: monster.y
     });
@@ -157,6 +190,34 @@ function summarizeMapOverlays(overlays: MapOverlayEntry[]): MapOverlaySummary {
     summary[overlay.kind] += 1;
   }
   return summary;
+}
+
+function buildNpcDetails(npc: LegacyNpcEntry): string[] {
+  const details: string[] = [];
+  if (npc.script) details.push(`script: ${npc.script}`);
+  if (npc.openUi) details.push(`openUI: ${npc.openUi}`);
+  if (npc.talkId > 0) details.push(`talk: ${npc.talkId}`);
+  return details;
+}
+
+function buildTeleportDetails(npc: LegacyNpcEntry, targetLabel: string): string[] {
+  const details = buildNpcDetails(npc);
+  details.unshift(
+    npc.teleportX > 0 || npc.teleportY > 0
+      ? `target: ${targetLabel} (${npc.teleportMapId}) -> ${npc.teleportX}, ${npc.teleportY}`
+      : `target: ${targetLabel} (${npc.teleportMapId})`
+  );
+  if (npc.teleportRange > 0) details.push(`range: ${npc.teleportRange}`);
+  return details;
+}
+
+function buildMonsterDetails(monster: LegacyMonsterEntry, monsterDef: LegacyMonsterDefEntry | undefined): string[] {
+  const details: string[] = [];
+  if (monster.count > 0) details.push(`spawn: ${monster.count}`);
+  if (monster.respawnSeconds > 0) details.push(`respawn: ${monster.respawnSeconds}s`);
+  if (monsterDef?.model) details.push(`model: ${monsterDef.model}`);
+  if (monster.radius > 0) details.push(`range: ${monster.radius}`);
+  return details;
 }
 
 function resolveMapInfo(document: MapDocument, mapInfoEntries: MapInfoEntry[]): MapInfoEntry | null {

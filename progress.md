@@ -206,3 +206,710 @@ Next
 - 给地图 overlay 增加 `mondef.csv` 关联，显示怪物名称和模型
 - 给 Teleport overlay 增加多目标展开与脚本入口信息
 - 给保存链路补只读工作区提示和 dirty 保护
+
+2026-03-26 Atlas / Rich Text / Monster Overlay Follow-up
+- 已新增 `src/editor/legacy-layout-resources.ts`：
+  - 为 UI 视口建立按请求名索引的资源解析层
+  - 优先解析直接图片资源
+  - 支持从 atlas 数据中裁切帧并生成视口可用 data URL
+- 已升级 `src/editor/components/LegacyUiLayoutViewport.tsx`：
+  - 通过资源解析层渲染 atlas frame 节点
+  - 新增旧版 rich text 片段渲染
+  - 新增 loading bar 填充渲染
+- 已修正 `src/editor/workspace.ts` 资产识别顺序：
+  - `uipic/*.png` 先识别为 `image`
+  - 避免被过早吞成 atlas 导致布局图片缺失
+- 已升级 `src/editor/legacy-map-data.ts`：
+  - 解析 `long/mondef.csv`
+  - 怪物覆盖层标签改为真实怪物名
+  - 副标题补模型 ID 与刷新信息
+- 已升级 `src/editor/components/MapDocumentCanvas.tsx`：
+  - 地图摘要区直接列出前几个 overlay 条目
+  - 让 NPC / 传送 / 怪物详情不只停留在 canvas 文本里
+- 已升级 `src/App.tsx`：
+  - `window.render_game_to_text()` 现在导出 `mapOverlayPreview` / `mapOverlaySummary`
+  - 方便 Playwright 对真实地图覆盖层做稳定断言
+- 已扩充夹具：
+  - `fixtures/legacy-sample/uipic/sample-atlas.json`
+  - `fixtures/legacy-sample/uipic/sample-atlas.png`
+  - `fixtures/legacy-sample/long/mondef.csv`
+  - `fixtures/legacy-sample/uilayout-json/sample-layout.json` 已重排节点坐标，提升截图可读性
+- 已升级真实浏览器冒烟脚本：
+  - 验证 atlas frame / rich text / loading bar 出现在布局视口
+  - 验证 `Master Tutor` 怪物标签与 `model 32006` 已通过 `mondef.csv` 富化
+
+Next
+- 继续迁入 bitmap font 节点和更接近旧版的文本排版规则
+- 给 teleport overlay 展示多目标入口和脚本信息
+- 为 atlas / biz / map 文档补更多只读/可写状态提示
+- 扩充夹具，覆盖更多真实布局节点类型与地图覆盖层组合
+
+2026-03-26 Teleport Overlay Detail Pass
+- 已升级 `src/editor/legacy-map-data.ts`：
+  - `npcgen.csv` 现在额外解析 `script`
+  - map overlay 结构补 `details` / `targetMapName`
+  - teleport overlay 会联动 `mapinfo.csv` 把目标地图 ID 解析成真实地图名
+  - NPC / Teleport / Monster 摘要卡片都会产出更细的 detail lines
+- 已升级 `src/editor/components/MapDocumentCanvas.tsx`：
+  - 地图摘要卡片现在直接显示脚本、openUI、talk、目标地图与坐标
+- 已升级 `src/App.tsx`：
+  - `window.render_game_to_text()` 会导出 overlay details / targetMapName
+  - 方便 Playwright 对 teleport 详情做稳定断言
+- 已扩充夹具：
+  - `fixtures/legacy-sample/long/mapinfo.csv` 新增 `nextmap -> Training Hall` 目标映射
+- 已升级真实浏览器冒烟脚本：
+  - 验证 teleport overlay 的 `Training Hall`
+  - 验证 `PanelTransfer`
+  - 验证 `npc.teleport`
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+
+Next
+- 继续迁入 bitmap font 节点和更接近旧版的文本排版规则
+- 考虑为地图文档额外输出中间态 artifact，便于单独审查 overlay 数据
+- 为 atlas / biz / map 文档补更多只读/可写状态提示
+- 扩充夹具，覆盖更多真实布局节点类型与地图覆盖层组合
+
+2026-03-26 Bitmap Font Viewport Pass
+- 已升级 `src/editor/legacy-layout-resources.ts`：
+  - 新增 bitmap font 解析与资源构建
+  - 支持从工作区 `.fnt` 找到配套 `.png`
+  - 为 UI 视口提供 `bitmap-font` 资源对象
+- 已升级 `src/editor/workspace.ts`：
+  - `.fnt` 现在按文本资产识别
+- 已升级 `src/editor/components/LegacyUiLayoutViewport.tsx`：
+  - 额外收集 `fntf`
+  - 对 `type=11 / fntf=...` 节点绘制真实 glyph 贴图
+  - DOM 上增加 `data-bitmap-glyph`，方便 Playwright 断言真实 glyph 而不是普通文本兜底
+- 已扩充夹具：
+  - `fixtures/legacy-sample/fonts/fifteenNum.fnt`
+  - `fixtures/legacy-sample/fonts/fifteenNum.png`
+  - `fixtures/legacy-sample/uilayout-json/sample-layout.json` 新增 `BitmapDigits`
+- 已升级真实浏览器冒烟脚本：
+  - 验证 `BitmapDigits` 下至少渲染 4 个 bitmap glyph
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+
+Next
+- 继续迁入更接近旧版的文本排版规则，例如缺字提示、按字体资源估算尺寸
+- 考虑把 bitmap font 做成单独预览文档或 inspector 细节面板
+- 为 atlas / biz / map 文档补更多只读/可写状态提示
+- 扩充夹具，覆盖更多真实布局节点类型与地图覆盖层组合
+
+2026-03-27 Bitmap Font Document Pass
+- 已升级 `src/editor/types.ts`：
+  - 新增 `bitmap-font` 资产/文档类型
+- 已升级 `src/editor/formats.ts`：
+  - 新增 BMFont 文本解析
+  - 新增 `parseBitmapFontDocument(...)`
+- 已升级 `src/editor/workspace.ts`：
+  - `.fnt` 现在会作为正式 `bitmap-font` 文档打开
+  - 会自动联动 page.file 对应的同目录 png
+- 已升级 `src/editor/components/PreviewPane.tsx`：
+  - 新增 `Bitmap Font Preview`
+  - 展示 glyph sheet、样本文字和 glyph 列表
+- 已升级 `src/editor/components/InspectorPane.tsx`：
+  - 展示 glyph 数量、lineHeight、scale、page.file、源路径
+- 已修正 `src/editor/legacy-layout-resources.ts`：
+  - bitmap-font 资源不再在视口切换瞬间过早 revoke，避免 preview 烟测里出现伪 `blob:` 失败
+- 已升级真实浏览器冒烟脚本：
+  - 直接打开 `fifteenNum.fnt`
+  - 验证 `Bitmap Font Preview`
+  - 验证 glyph 列表至少 10 条
+  - 产出 `output/playwright/dev-bitmap-font.png`
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+
+Next
+- 继续迁入更接近旧版的文本排版规则，例如缺字提示、按字体资源估算尺寸
+- 给 bitmap font 文档补 glyph 详情选择态和单字高亮
+- 为 atlas / biz / map 文档补更多只读/可写状态提示
+- 扩充夹具，覆盖更多真实布局节点类型与地图覆盖层组合
+
+2026-03-27 Editor Start Script
+- 已新增一键启动脚本：
+  - `D:\game\BRM-TS\UI\启动编辑器.bat`
+  - `D:\game\BRM-TS\启动UI编辑器.bat`
+- 脚本行为：
+  - 若 `node_modules` 不存在会先执行 `pnpm install`
+  - 固定以 `http://127.0.0.1:5173` 启动编辑器
+  - 若编辑器已在该地址运行，则直接打开页面
+  - 若未运行，则拉起 `pnpm dev --host 127.0.0.1 --port 5173` 并等待页面 ready 后自动打开浏览器
+- 已完成本地验证：
+  - `cmd /c D:\game\BRM-TS\启动UI编辑器.bat`
+  - `Invoke-WebRequest http://127.0.0.1:5173` 返回 `200`
+
+2026-03-27 Full Project Workspace Cache + Tree Pass
+- 已新增 `src/editor/project-cache.ts`：
+  - 使用 `IndexedDB` 持久化最后一次通过 `Open Workspace` 选中的 `FileSystemDirectoryHandle`
+  - 支持加载、保存、清除缓存项目
+- 已升级 `src/App.tsx`：
+  - 页面启动时会尝试读取缓存项目
+  - 如果浏览器仍保留该目录的读写权限，会自动恢复工作区
+  - 如果缓存存在但权限未自动延续，会在工具栏和欢迎页显示 `Restore Cached` / `Forget Cache`
+  - `Open Workspace` 成功后会自动写入缓存
+  - `render_game_to_text()` 现在额外导出 `rememberedWorkspace` 和 `workspaceProfile`
+  - 当工作区同时包含 `packages/client/public/res` 与 `backend/runtime/gameserver/data` 时，会识别为 `full-project`
+- 已升级 `src/editor/view-model.ts`：
+  - 当选中 `D:\game\BRM-TS\phaser-legend-migration` 这类完整项目根时，资源树会自动拆成：
+    - `Client Resources`
+    - `Server Data`
+    - `Project Files`
+  - 兼容两种路径形态：
+    - `Open Workspace` 的相对路径
+    - `Import Folder` 带根目录前缀的路径
+  - 为目录和文件增加图标、扩展名 badge、类型 badge、相对路径副标题
+- 已升级 `src/editor/components/AssetBrowserTree.tsx`：
+  - 新树视图支持分组根、递归层级线、资源类型标签与目录资源数量
+- 已升级 `src/editor/components/WelcomeHome.tsx`：
+  - 欢迎页会显示当前挂载项目或缓存项目
+  - 可直接执行恢复缓存或移除缓存
+- 已升级 `src/App.css`：
+  - 文件树补齐图标、badge、层级线、目录摘要与欢迎页缓存操作区样式
+- 已升级烟测脚本 `scripts/smoke-editor.mjs`：
+  - 适配欢迎页新增的 `Mounted workspace` 文案，避免和工具栏 `Workspace: ...` 发生 strict locator 冲突
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 串行验证全部通过
+  - 最新 `output/playwright/dev-browser.log` 中没有 `pageerror` 或 `requestfailed`
+  - `dev-home.png` / `dev-imported.png` 已能看到新的文件树视觉层级和缓存入口
+- 当前剩余风险：
+  - 自动恢复缓存项目依赖 Chromium 对 `File System Access` 目录权限的持续授权；现有烟测仍以 `Import Folder` 为主，没有覆盖真实 `showDirectoryPicker` 恢复链路
+  - 若后续要对“打开完整 phaser 项目根”做自动化回归，最好单独增加一个支持真实目录句柄的手工验证流程或受控浏览器用例
+
+2026-03-27 Dashboard + Workspace Progress + Linked Preview Pass
+- 已升级 `src/editor/project-cache.ts`：
+  - 缓存模型从单个项目扩展为最近项目列表
+  - 新增按项目删除和清空全部最近项目能力
+  - 自动保留最近 8 个工作区卡片
+- 已升级 `src/editor/workspace.ts`：
+  - `scanWorkspace(...)` / `openWorkspaceDirectory(...)` / `openWorkspaceFiles(...)` 已支持显式进度回调
+  - 目录扫描现在会报告当前路径、已处理数量和完成状态
+  - `Import Folder` 现在会报告确定性的百分比进度
+- 已升级 `src/App.tsx`：
+  - 切换项目时会重置旧项目标签页和选择态，避免跨项目状态串线
+  - 顶栏新增最近项目统计与工作区进度条
+  - 资产面板新增读取中的进度提示
+  - `render_game_to_text()` 现在额外导出 `recentWorkspaceCount` 与 `workspaceProgress`
+  - 打开 `cloth/*.png` / `weapon/*.png` / `effect/*.png` 时，会直接进入联动动画预览文档，而不是停留在静态图片
+- 已升级 `src/editor/components/WelcomeHome.tsx`：
+  - 重构为 Creator 风格项目中心
+  - 新增项目卡片列表、打开/删除最近项目、添加项目、导入目录和当前项目状态卡
+  - 新增工作区读取进度卡片
+- 已升级 `src/editor/components/PreviewPane.tsx`：
+  - Avatar / Effect 预览新增方向按钮条
+  - Avatar 预览新增常用状态切换
+  - 联动预览会直接显示关联源图片路径和解析到的 fileId
+- 已升级 `src/editor/view-model.ts` / `src/editor/components/AssetBrowserTree.tsx`：
+  - 资源树新增 `CLOTH` / `WEAPON` / `EFFECT` / `UIPIC` / `LONG` 等家族 badge
+- 已升级 `src/App.css`：
+  - 新增项目中心卡片、最近项目栅格、进度条、分段按钮和联动预览提示样式
+- 已升级烟测脚本 `scripts/smoke-editor.mjs`：
+  - 新增 `cloth/2000100.png` -> 联动 Avatar 预览验证
+  - 新增 `dev-linked-avatar.png` 工件
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 中没有 `pageerror` 或 `requestfailed`
+  - `output/playwright/dev-home.png` 已显示项目中心卡片和状态卡
+  - `output/playwright/dev-imported.png` 已显示读取完成后的工作区进度条
+  - `output/playwright/dev-linked-avatar.png` 已验证从图片资源树直接进入联动动画预览
+- 当前剩余风险：
+  - 最近项目卡片的自动恢复仍依赖浏览器保留 `File System Access` 权限；现有烟测仍以 `Import Folder` 为主
+  - `biz` / `map` 还缺少真正的打包、解包、导出和更细粒度资源绑定模型，当前先补到了可识别、可浏览、可联动预览这一层
+
+2026-03-27 Cocos Workspace Layout Pass
+- 已升级 `src/App.tsx`：
+  - 工作区主结构改为更接近 Cocos Creator 的三栏工作台
+  - 左列拆成 `Hierarchy` + `Assets`
+  - 中列拆成 `Scene / Preview` + `Console`
+  - 右列保持 `Inspector`
+  - 各面板补了 dock 标题条，整体更接近编辑器分栏观感
+- 已升级 `src/App.css`：
+  - 新增 `workspace-column` 三列布局和各列行分配
+  - 移除旧的四列平铺式工作区布局
+  - 新增 dock 头部样式和新的响应式回退逻辑
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - `output/playwright/dev-home.png` 已显示 Cocos 风格的左/中/右工作区骨架
+  - `output/playwright/dev-imported.png` 已验证工作区导入后布局正常，资源树、欢迎页、控制台和检查器均可见
+
+2026-03-27 Cocos Dock / Toolbar Follow-up
+- 已升级 `src/App.tsx`：
+  - 资源区新增工作台过滤 tab：`All / UI / Avatar / Map / Data`
+  - 中央预览区新增 `Scene / Preview` 场景工具条与文档状态 pill
+  - 底部控制台新增 dock tab：`Console / Selection / Project`
+  - 右侧检查器新增 dock tab：`Properties / Document`
+  - 底部与右侧非日志页会显示当前文档、选中资源、工作区和进度摘要
+- 已升级 `src/App.css`：
+  - 新增 `dock-tab`、`panel__subtabs`、`panel__toolbar--stage`、`dock-metrics` 等样式
+  - 让中心工作区更接近 Cocos Creator 的 dock / tab / toolbar 层次
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-home.png` 已显示更完整的 Creator 风格工作区操作层
+  - 最新 `output/playwright/dev-imported.png` 已显示资源过滤 tab、场景工具条、底部 dock tab 和检查器 tab
+
+2026-03-27 Cocos Style Rectification Pass
+- 已升级 `src/editor/components/WelcomeHome.tsx`：
+  - 当工作区已挂载但尚未打开文档时，中心区不再显示项目首页卡片堆
+  - 改为更接近编辑器空场景的 `Scene Empty` 视图，并将工作区状态/最近项目压缩到右侧摘要栏
+  - 未挂载工作区时仍保留项目 dashboard
+- 已升级 `src/App.css`：
+  - 顶栏、按钮、tab、资源树、检查器、日志、dock 卡片整体降圆角、降留白、降装饰
+  - 大面积渐变与网页卡片感被压缩，改为更接近 Creator 的深色桌面编辑器风格
+  - 资源树条目和面板容器改为更扁平、更紧凑的桌面 UI 质感
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-home.png` 已显示更紧凑的 Creator 风格 dashboard
+  - 最新 `output/playwright/dev-imported.png` 已显示挂载工作区后的场景优先空态，而不是大面积首页卡片
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+
+2026-03-27 High-Fidelity Creator Shell Pass
+- 已升级 `src/App.tsx`：
+  - 顶栏新增近似桌面编辑器的菜单条：`File / Edit / Asset / Panel / Project / Help`
+  - 中央场景工具条新增更接近 Creator 的工具按钮：`Hand / Move / Rotate / Scale / Rect`
+  - 场景工具条新增 `Fit / 100%` 缩放按钮
+- 已升级 `src/editor/components/WelcomeHome.tsx`：
+  - 已挂载工作区但未打开文档时，进一步改成更接近编辑器视口的空场景板
+  - 场景底部新增状态条，显示工作区、profile、ready 状态和 recent 摘要
+  - 未挂载工作区时，最近项目区从卡片栅格进一步压成列表行样式
+- 已升级 `src/App.css`：
+  - 顶栏加入桌面菜单条样式
+  - 进一步压缩按钮、dock、panel、资源树、日志、检查器的圆角、留白和高亮强度
+  - 中央空场景加入十字参考线、原点、状态条和更接近 Creator 的深色网格
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-home.png` 已显示更完整的 Creator 风格壳体和菜单层
+  - 最新 `output/playwright/dev-imported.png` 已显示更像编辑器视口的挂载后空场景
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+
+2026-03-27 Interactive Dock / Stage Tooling Pass
+- 已升级 `src/App.tsx`：
+  - 顶栏菜单不再只是静态文案，`File / Edit / Asset / Panel / Project / Help` 现在都有真实下拉命令
+  - 新增键盘快捷键：
+    - `Ctrl+S` 保存
+    - `Ctrl+0` Fit
+    - `Ctrl+1` 100%
+    - `Ctrl+D` 复制当前 UI 节点
+    - `Ctrl+Shift+N` 新增子节点
+    - `Delete` 删除当前 UI 节点
+  - 工作台改为可拖拽分栏：
+    - 左栏宽度
+    - 左栏 `Hierarchy / Assets` 高度
+    - 中栏 `Scene / Console` 高度
+    - 右栏宽度
+  - 文档 tab 结构改为独立选中按钮 + 关闭按钮，避免原先把关闭区塞进 tab button 的交互歧义
+  - `window.render_game_to_text()` 现在额外导出：
+    - `sceneTool`
+    - `sceneZoom`
+    - `stageWorkbenchMode`
+    - `bottomDockTab`
+    - `inspectorDockTab`
+- 已升级 `src/editor/components/PreviewPane.tsx`：
+  - `Scene / Preview` 与 `Fit / 100%` 状态正式下沉到具体预览组件
+  - UI / MAP 视图会根据 `scene` / `preview` / `hand` 给出不同交互文案
+- 已升级 `src/editor/components/LegacyUiLayoutViewport.tsx`：
+  - `Fit / 100%` 现在会真正改变 UI 视口缩放
+  - `Hand` 工具现在可以拖动画布滚动，而不是纯展示按钮
+  - `Preview` 模式会关闭节点选中与拖拽，变成只读舞台
+  - UI 节点拖拽已适配缩放比例，避免 100% / Fit 下坐标漂移
+- 已升级 `src/editor/components/MapDocumentCanvas.tsx`：
+  - 地图画布支持真实 `Fit / 100%`
+  - `Hand` 工具可拖动画布平移
+  - `Preview` 模式会锁定绘制，避免查看 overlay 时误刷 block 数据
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - 新增 `Scene -> Preview -> Scene` 与 `Fit / 100%` 状态切换断言
+  - 新增通过顶栏 `Edit` 菜单触发 `Add Child` 的回归验证
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+  - 最新 `output/playwright/dev-home.png` 已显示可操作的菜单条、分栏和更紧凑的 dock 壳层
+  - 最新 `output/playwright/dev-sample-layout.png` 已显示可缩放的 UI 视口和新的分栏结构
+
+2026-03-27 UI Transform Tool Pass
+- 已升级 `src/App.tsx`：
+  - `window.render_game_to_text()` 现在额外导出 `dragStateMode`
+  - UI 节点方向键行为现在跟随场景工具：
+    - `Move` 下方向键移动 `x / y`
+    - `Rect` 下方向键调整 `w / h`
+    - `Scale` 下方向键调整 `sx / sy`
+    - `Rotate` 下方向键调整 `r`
+  - `Shift + Arrow` 会使用更大的步进值
+- 已升级 `src/editor/components/InspectorPane.tsx`：
+  - UI 节点检查器新增：
+    - `Rotation`
+    - `Scale X`
+    - `Scale Y`
+- 已升级 `src/editor/components/PreviewPane.tsx`：
+  - `Rect / Scale / Rotate` 文案改为真实可用的键盘变换说明
+- 已升级 `src/editor/components/LegacyUiLayoutViewport.tsx`：
+  - 节点渲染现在真正应用：
+    - `r`
+    - `sx`
+    - `sy`
+  - 选中节点新增 transform overlay：
+    - 工具标签
+    - 四角标记
+    - rect / scale / rotate 命中层外观
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - `Move` 继续验证真实鼠标拖拽
+  - `Rect / Scale / Rotate` 新增键盘变换回归断言
+  - 断言内容包括：
+    - `w / h` 改变
+    - `sx / sy` 改变
+    - `r` 改变
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新串行烟测通过
+  - 最新 `output/playwright/dev-state.json` 已能导出 transform 工具状态
+
+2026-03-27 Dock Layout Persistence + Collapse Pass
+- 已升级 `src/App.tsx`：
+  - 新增 `editor layout` 持久化模型，使用 `localStorage` 记住：
+    - 左栏宽度
+    - 右栏宽度
+    - 底部 dock 高度
+    - `Hierarchy / Assets` 分栏高度
+    - `All / UI / Avatar / Map / Data`
+    - `Scene / Preview`
+    - `Fit / 100%`
+    - `Hand / Move / Rotate / Scale / Rect`
+    - `Console / Selection / Project`
+    - `Properties / Document`
+  - 新增 Creator 风格 dock 折叠状态：
+    - 左侧资源列可折叠
+    - 底部 Console dock 可折叠
+    - 右侧 Inspector dock 可折叠
+  - 折叠后会显示 rail 按钮，可直接恢复对应面板
+  - `Panel` 菜单现在支持：
+    - `Show / Hide Left Dock`
+    - `Show / Hide Bottom Dock`
+    - `Show / Hide Inspector Dock`
+    - `Reset Layout`
+    - 各 dock tab 的 focus 操作会自动展开对应面板
+  - `window.render_game_to_text()` 现在额外导出：
+    - `assetWorkbenchFilter`
+    - `leftDockCollapsed`
+    - `bottomDockCollapsed`
+    - `rightDockCollapsed`
+    - `leftColumnWidth`
+    - `rightColumnWidth`
+    - `bottomDockHeight`
+    - `hierarchyPaneHeight`
+- 已升级 `src/App.css`：
+  - 工作台 grid 现在支持折叠后的 rail 宽度和 splitter 隐藏
+  - 新增 dock 折叠按钮、vertical rail、bottom rail 和恢复按钮样式
+  - 折叠后的视觉更接近桌面编辑器侧边栏标签，而不是简单 `display:none`
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - 启动时会先清掉旧布局缓存，保证回归确定性
+  - 新增布局持久化回归：
+    - 切换到非默认 `UI / Preview / 100% / Scale / Project / Document`
+    - 折叠左 / 下 / 右三个 dock
+    - 刷新页面后断言布局状态保持
+    - 通过 rail 恢复 dock 后继续跑完整功能链路
+  - 为后续地图编辑步骤显式切回 `Properties`
+  - 为 UI 节点拖拽步骤显式切回 `Move`
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+  - 最新 `output/playwright/preview/dev-browser.log` 为空，无新预览态错误
+  - 最新 `output/playwright/dev-home.png` / `dev-imported.png` / `dev-sample-layout.png` 已显示新的 dock 壳体和恢复后的工作区
+- 当前剩余风险：
+  - 当前是“折叠/恢复 + 分栏记忆”，还不是完整的任意拖拽重排 dock 系统
+  - `Import Folder` 路径下的工作区依旧是会话态，只持久化编辑器布局，不持久化上传文件本身
+
+2026-03-27 Scene Focus + Dirty Close Guard Pass
+- 已升级 `src/App.tsx`：
+  - 新增 `sceneFocusMode`：
+    - 中央 `Scene / Preview` 工具条新增 `Maximize / Restore`
+    - `Panel` 菜单新增 `Maximize Scene Panel`
+    - `Shift + Space` 可在场景最大化和普通工作区之间切换
+    - 最大化时会隐藏左侧、右侧和底部 dock，让中央舞台真正独占工作区
+    - `window.render_game_to_text()` 现在额外导出 `sceneFocusMode`
+  - 新增脏文档关闭保护：
+    - 关闭 dirty tab 时会弹出确认框
+    - 取消关闭时会保留当前文档并写日志
+    - 确认关闭时会明确记录 `Closed dirty tab without saving`
+  - 新增页面级未保存保护：
+    - 存在 dirty tab 时会注册 `beforeunload` 提醒
+  - 补齐此前只写在菜单上但未真正生效的快捷键：
+    - `Ctrl+O` 打开工作区
+    - `Ctrl+N` 新建 UI Layout
+    - `Ctrl+W` 关闭当前 tab
+    - `Ctrl+Shift+N` 继续保持为 `Add Child`
+- 已升级 `src/App.css`：
+  - 新增 `workspace-column--hidden`，用于场景最大化时彻底隐藏非场景 dock
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - 新增场景最大化 / 恢复回归断言
+  - 新增 dirty tab 关闭确认回归：
+    - 第一次 dismiss，确认文档仍保留
+    - 第二次 accept，确认 dirty tab 被移除
+    - 最后切回 `sample-layout.json`，继续保持 UI layout 终态检查
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+  - 最新 `output/playwright/preview/dev-browser.log` 为空
+  - 最新 `output/playwright/dev-state.json` 已显示：
+    - `sceneFocusMode`
+    - dirty tab 关闭确认后的日志
+    - 关闭 `NewLayout1.json` 后重新回到 `sample-layout.json`
+- 当前剩余风险：
+  - 场景最大化当前是“隐藏其他 dock”的稳定实现，还不是 Creator 那种可拖拽停靠+单面板全屏的完整窗口系统
+  - dirty close 目前先覆盖了 tab 关闭和页面离开提醒，还没有做保存前差异预览或批量关闭确认
+
+2026-03-27 Save All + Workspace Dirty Guard Pass
+- 已升级 `src/App.tsx`：
+  - 新增统一 `saveDocumentTab(...)` 保存链路，`Save` 和 `Save All` 共用同一套逻辑
+  - 新增 `Save All`：
+    - 顶栏新增 `Save All`
+    - `File` 菜单新增 `Save All`
+    - 快捷键新增 `Ctrl+Shift+S`
+    - 会顺序保存所有 dirty 文档，并输出 `saved / skipped / failed` 汇总
+  - 修正此前顶栏 `Save N` 的误导行为：
+    - 现在 `Save` 明确只保存当前文档
+    - `Save All N` 单独负责批量保存
+  - 修复新建文档 / 导入只读文档 `Save As` 后仍反复弹 picker 的问题：
+    - 保存成功后会把新拿到的 `FileSystemFileHandle` 挂回当前 tab asset
+    - `upload -> Save As` 后会切换成可继续保存的 `fs-access` 资产态
+  - 新增工作区切换 dirty guard：
+    - `Open Workspace`
+    - `Import Folder`
+    - `Restore Cached Workspace`
+    - `Rescan Workspace`
+    - 以上操作在存在 dirty tab 时都会先确认，避免直接丢改
+    - 取消时会明确记录 `... cancelled because there are unsaved documents`
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - 新增工作区切换保护回归：
+    - 在 dirty UI layout 状态下构造一个假的导入文件
+    - 触发 `Import Folder` 变更事件
+    - dismiss 对话框后断言当前文档仍保留，且日志出现取消提示
+  - 原有 dirty tab 关闭确认回归继续保留
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+  - 最新 `output/playwright/preview/dev-browser.log` 为空
+  - 最新 `output/playwright/dev-state.json` 已显示：
+    - `Import folder cancelled because there are unsaved documents.`
+    - dirty tab 取消关闭和确认关闭两条日志
+- 当前剩余风险：
+  - `Save All` 在 `Import Folder` 工作区下若浏览器不支持 `showSaveFilePicker`，仍会对对应文档走 `skipped`，这是当前浏览器能力限制
+  - 工作区切换保护当前先做成统一确认框，还没有细分成“保存全部后继续 / 丢弃 / 取消”三态流程
+
+2026-03-27 In-App Dirty Action Modal Pass
+- 已升级 `src/App.tsx`：
+  - 移除关闭 dirty tab 和工作区切换时对原生 `window.confirm` 的依赖
+  - 新增应用内 `dirty action modal`，支持三态：
+    - `Save / Save All`
+    - `Close Without Saving / Discard Changes`
+    - `Cancel`
+  - modal 会列出所有 dirty 文档，并标记：
+    - `saveable`
+    - `preview only`
+  - `window.render_game_to_text()` 现在额外导出：
+    - `dirtyActionPrompt`
+    - 包含 `mode / dirtyCount / savableCount`
+  - `Close Tab` 的 dirty 流程现在支持：
+    - 取消关闭
+    - 先保存再关闭
+    - 不保存直接关闭
+  - `Open Workspace / Import Folder / Restore Cached / Rescan Workspace` 的 dirty 流程现在支持：
+    - 取消
+    - 先保存全部再继续
+    - 丢弃后继续
+  - `Save All` 和 dirty modal 现在共用同一套 `runDirtyTabsSaveFlow(...)`，避免重复逻辑
+- 已升级 `src/App.css`：
+  - 新增桌面编辑器风格 modal/backdrop/card/list/tag/footer 样式
+  - 让未保存保护不再是浏览器默认弹框，而是工作台内的统一交互层
+- 已升级烟测 `scripts/smoke-editor.mjs`：
+  - 将旧的浏览器 `dialog` 断言切换为页面内 `[data-dirty-action-modal]` 交互
+  - 新增三态回归：
+    - `Import Folder` dirty modal -> `Cancel`
+    - `Close NewLayout1.json` dirty modal -> `Save`
+    - `Close NewLayout2.json` dirty modal -> `Close Without Saving`
+  - 新增浏览器内 mock `showSaveFilePicker`，稳定验证“先保存再关闭”的路径
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `output/playwright/dev-browser.log` 仍无 `pageerror` 或 `requestfailed`
+  - 最新 `output/playwright/preview/dev-browser.log` 为空
+  - 最新 `output/playwright/dev-state.json` 已显示：
+    - `dirtyActionPrompt: null`，说明最终 modal 已正确收起
+    - `Import folder cancelled because there are unsaved documents.`
+    - `Saved document: NewLayout1.json`
+    - `Closed dirty tab after saving: NewLayout1.json`
+    - `Closed dirty tab without saving: NewLayout2.json`
+- 当前剩余风险：
+- 当前 dirty modal 还没有做“按文档逐个勾选保存”的更细粒度控制，仍是面向整个动作批量处理
+- 若后续要进一步靠近 Creator，可继续把该 modal 升级成真正的任务队列式保存面板，而不只是一次性决策层
+
+2026-03-27 Creator Layout Alignment + Real UI Validation Pass
+- 已参考 `https://docs.cocos.com/creator/3.8/manual/zh/editor/` 对编辑器壳层继续压样式和结构：
+  - 顶部改为更接近桌面编辑器的双层结构：
+    - 上层菜单条 `File / Edit / Node / Project / Panel / Extension / Developer / Help`
+    - 下层工作条按 `Project / Labs / Save` 分组
+  - 全局背景从网页式发光渐变改为更扁平的深色桌面工作台
+  - panel / dock / tab / tree / inspector / console 全部缩小圆角、留白和卡片感
+  - 中央场景区继续保持 scene-first，不再回到网页式大 dashboard
+- 已修正工作区进度条表现：
+  - 只有真实扫描/导入进行中才显示顶部和欢迎页进度 UI
+  - 未选择项目时不再出现假进度条
+  - 已挂载且扫描完成后状态显示为 `Ready`
+- 已升级 `src/editor/components/PreviewPane.tsx`：
+  - UI 文档标题改为 `Legacy Layout Preview`
+  - 场景头部新增 `Scene / Edit Mode / Tool / Zoom` 风格摘要
+- 已升级真实浏览器烟测 `scripts/smoke-editor.mjs`：
+  - 适配新标题 `Legacy Layout Preview`
+  - 适配 `Node` 菜单下的 `Add Child`
+  - 回归验证继续覆盖：
+    - 初始页无假进度条
+    - 导入后进度条收起
+    - UI / Avatar / Bitmap Font / Map / dirty modal 全链路
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - `output/playwright/dev-browser.log` 无 `pageerror` / `requestfailed`
+  - `output/playwright/preview/dev-browser.log` 为空
+  - 最新 `dev-home.png` / `dev-imported.png` / `dev-sample-layout.png` 已反映新的 Creator 风格壳层
+- 当前剩余风险：
+  - 当前已经接近 Creator 的桌面编辑器壳层，但还不是可自由拖拽重排的完整 dock 系统
+  - 欢迎态现在优先保持场景空态；如果后续要继续贴近 Creator Hub / Dashboard，可以再单独做项目中心窗口
+
+2026-03-27 Scene Launchpad Visibility + Toolbar Compaction Pass
+- 已修正中心工作区 panel grid 行定义错误：
+  - `panel--center`
+  - `panel--asset-browser`
+  - `panel--logs`
+  - `panel--inspector`
+  - 之前 body 落到隐式 `auto` 行导致场景欢迎层被压成底部细条
+- 已升级 `src/App.css`：
+  - `panel__body--workspace` 改为真正占满工作区的 `grid`
+  - `WelcomeHome` / `scene-empty` / `viewport` 现在会填满中心 `Scene` 面板
+  - 顶部工作条改成更紧凑的两段式：
+    - 第一段操作按钮
+    - 第二段状态 pill
+  - 未加载工作区时不再在顶栏展示禁用的 `Avatar Lab / Effect Lab`
+- 已升级 `scripts/smoke-editor.mjs`：
+  - 初始首页现在强制断言 `Choose a BRM workspace` 可见
+  - 导入工作区后强制断言 `legacy-sample` 空场景标题可见
+  - 防止后续再把欢迎浮层压塌却只靠功能回归蒙混通过
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `dev-home.png` 已显示嵌入场景区的启动浮层与最近项目卡
+  - 最新 `dev-imported.png` 已显示挂载工作区后的空场景浮层
+  - 最新 `dev-browser.log` 仍无 `pageerror` / `requestfailed`
+
+2026-03-27 Dashboard + Dock Tooling Alignment Pass
+- 已参考：
+  - `https://docs.cocos.com/creator/3.8/manual/zh/getting-started/helloworld/`
+  - `https://docs.cocos.com/creator/3.8/manual/zh/getting-started/dashboard/`
+  - `https://docs.cocos.com/creator/3.8/manual/zh/editor/`
+- 已升级 `src/App.tsx`：
+  - 当 `无工作区 + 无文档` 时，不再显示编辑器三栏壳层
+  - 改为独立 `Dashboard` 主界面，更接近 Cocos Dashboard 的入口形态
+  - 资源区新增：
+    - 查询模式 `All / Name / Type / Path`
+    - 排序模式 `Sort: Name / Sort: Type`
+    - `Expand / Collapse`
+    - `Import / Refresh`
+  - 层级区新增：
+    - 查询模式 `All / Name / Type / Text / Resource`
+    - `Expand / Collapse`
+    - `+ / -` 节点工具按钮
+  - 检查器新增头部工具位：
+    - `← / →` 历史占位
+    - `Lock` 锁定按钮
+- 已升级 `src/editor/components/WelcomeHome.tsx`：
+  - 无工作区首页改为 Dashboard 风格：
+    - 左侧导航 `Home / Projects / Editors`
+    - 顶部项目标题区和操作按钮
+    - 搜索 / 排序工具条
+    - 最近项目列表
+    - 编辑器模块卡片
+  - 工作区已挂载但未开文档时，继续保留 Scene Empty 浮层
+- 已升级 `src/editor/components/HierarchyTree.tsx` / `src/editor/components/AssetBrowserTree.tsx`：
+  - 支持外部 `Expand / Collapse` 控制
+  - 层级树节点显示更接近编辑器式条目
+- 已升级 `src/editor/components/InspectorPane.tsx`：
+  - UI 节点属性分组改为：
+    - `Node`
+    - `Transform`
+    - `Content`
+  - 更接近 Creator 检查器的属性分区方式
+- 已升级 `src/editor/view-model.ts`：
+  - `createAssetTree(...)` 新增排序模式
+  - `filterAssetsByQuery(...)` 新增查询模式
+- 已升级真实浏览器烟测 `scripts/smoke-editor.mjs`：
+  - 初始首页现在额外断言 Dashboard 左侧导航存在
+  - 导入工作区后折叠 dock、刷新、回到 Dashboard、再次导入并恢复 dock 的链路已适配新入口流程
+- 本轮已完成验证：
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+  - `pnpm test:smoke:sequential`
+- 本轮确认结果：
+  - 最新 `dev-home.png` 已显示 Dashboard 风格项目中心
+  - 最新 `dev-imported.png` 已显示更接近 Creator 的 dock 工具栏和场景空态
+  - 最新 `dev-sample-layout.png` 已显示更完整的层级/资源/检查器工具条
+  - 最新 `dev-browser.log` 仍无 `pageerror` / `requestfailed`

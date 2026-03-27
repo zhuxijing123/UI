@@ -26,6 +26,19 @@ export const LEGACY_RENDER_TICK = 30;
 export const LEGACY_GHOST_PLAYER = 501;
 export const LEGACY_PERF_CLOTH = 20000;
 
+export type LinkedLegacyPreviewIntent =
+  | {
+      kind: "avatar-preview";
+      cloth?: number;
+      weapon?: number;
+      sourcePath: string;
+    }
+  | {
+      kind: "effect-preview";
+      fileId: number;
+      sourcePath: string;
+    };
+
 export async function createAvatarPreviewDocument(assets: WorkspaceAsset[]): Promise<AvatarPreviewDocument> {
   const clothBizAsset = findAssetBySuffix(assets, "/biz/cloth.biz");
   const weaponBizAsset = findAssetBySuffix(assets, "/biz/weapon.biz");
@@ -103,6 +116,67 @@ export async function createEffectPreviewDocument(assets: WorkspaceAsset[]): Pro
   };
 }
 
+export function inferLinkedLegacyPreviewIntent(asset: WorkspaceAsset): LinkedLegacyPreviewIntent | null {
+  if (asset.kind !== "image") return null;
+  const normalized = asset.path.replace(/\\/g, "/").toLowerCase();
+  const fileId = Number.parseInt(asset.name.replace(/\.[^.]+$/, ""), 10);
+  if (!Number.isFinite(fileId) || fileId <= 0) return null;
+
+  if (normalized.includes("/cloth/")) {
+    return {
+      cloth: Math.floor(fileId / 100),
+      kind: "avatar-preview",
+      sourcePath: asset.path
+    };
+  }
+
+  if (normalized.includes("/weapon/")) {
+    return {
+      kind: "avatar-preview",
+      sourcePath: asset.path,
+      weapon: Math.floor(fileId / 100)
+    };
+  }
+
+  if (normalized.includes("/effect/")) {
+    return {
+      fileId,
+      kind: "effect-preview",
+      sourcePath: asset.path
+    };
+  }
+
+  return null;
+}
+
+export async function createLinkedLegacyPreviewDocument(
+  intent: LinkedLegacyPreviewIntent,
+  assets: WorkspaceAsset[]
+): Promise<AvatarPreviewDocument | EffectPreviewDocument> {
+  if (intent.kind === "avatar-preview") {
+    const document = await createAvatarPreviewDocument(assets);
+    const nextCloth = normalizePositiveInt(intent.cloth ?? document.cloth) || document.cloth;
+    const nextWeapon = normalizePositiveInt(intent.weapon ?? document.weapon) || document.weapon;
+    return {
+      ...document,
+      cloth: nextCloth,
+      id: `avatar-preview-${nextCloth || nextWeapon || "default"}`,
+      name: buildAvatarPreviewName(nextCloth, nextWeapon),
+      sourcePath: intent.sourcePath,
+      weapon: nextWeapon
+    };
+  }
+
+  const document = await createEffectPreviewDocument(assets);
+  return {
+    ...document,
+    fileId: normalizePositiveInt(intent.fileId) || document.fileId,
+    id: `effect-preview-${normalizePositiveInt(intent.fileId) || document.fileId || "default"}`,
+    name: `Effect ${normalizePositiveInt(intent.fileId) || document.fileId || "Preview"}`,
+    sourcePath: intent.sourcePath
+  };
+}
+
 async function openBizBank(asset: WorkspaceAsset, id: string): Promise<BizDocument> {
   return parseBizDocument(id, asset.name, asset.path, await readAssetBuffer(asset), asset.handle, null, null);
 }
@@ -133,6 +207,12 @@ function buildLookOptions(imageAssets: Record<string, WorkspaceAsset>): number[]
     out.add(Math.floor(fileId / 100));
   }
   return Array.from(out).sort((left, right) => left - right);
+}
+
+function buildAvatarPreviewName(cloth: number, weapon: number): string {
+  if (cloth > 0) return `Avatar ${cloth}`;
+  if (weapon > 0) return `Weapon ${weapon}`;
+  return "Avatar Lab";
 }
 
 export function parseLegacyGameInfoText(text: string): LegacyGameInfoEntry[] {

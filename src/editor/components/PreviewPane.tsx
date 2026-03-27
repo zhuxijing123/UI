@@ -1,6 +1,8 @@
-import type { PointerEvent } from "react";
+import type { MouseEvent } from "react";
 
 import { getAtlasFrameBySelection, getBizFileBySelection, getBizFrameBySelection, type MapCell } from "../app-utils";
+import { useTranslation } from "../i18n/useTranslation";
+import { findBizFileById, resolveAvatarFileCandidates } from "../legacy-labs";
 import type { EditorDocument, GenericTextDocument, LegacyUILayoutNode, WorkspaceAsset } from "../types";
 import { AvatarPreviewCanvas } from "./AvatarPreviewCanvas";
 import { EmptyState } from "./EmptyState";
@@ -15,14 +17,25 @@ type PreviewPaneProps = {
   bizFileIndex: number;
   bizFrameId: number | null;
   mapCellSelection: MapCell | null;
+  stageMode: "scene" | "preview";
+  sceneTool: "hand" | "move" | "rotate" | "scale" | "rect";
+  sceneZoom: "fit" | "100";
   onAtlasFrameSelect: (frameName: string) => void;
   onBizFileSelect: (fileIndex: number) => void;
   onBizFrameSelect: (frameId: number) => void;
+  onChangeAvatarDocument: (patch: { cloth?: number; weapon?: number; dir?: number; state?: number }) => void;
+  onChangeEffectDocument: (patch: { fileId?: number; dir?: number; delay?: number; loop?: boolean }) => void;
   onChangeTextDocument: (text: string) => void;
   onMapPaint: (x: number, y: number) => void;
+  onSceneContextMenu?: (e: MouseEvent) => void;
   onSelectUiNode: (nodeId: number) => void;
   selectedUiNodeId: number | null;
-  onBeginUiDrag: (node: LegacyUILayoutNode, event: PointerEvent<HTMLElement>) => void;
+  onBeginUiDrag: (
+    node: LegacyUILayoutNode,
+    mode: "move" | "rect" | "scale" | "rotate",
+    event: MouseEvent<HTMLElement>,
+    scale: number
+  ) => void;
 };
 
 export function PreviewPane({
@@ -32,26 +45,58 @@ export function PreviewPane({
   bizFileIndex,
   bizFrameId,
   mapCellSelection,
+  stageMode,
+  sceneTool,
+  sceneZoom,
   onAtlasFrameSelect,
   onBizFileSelect,
   onBizFrameSelect,
+  onChangeAvatarDocument,
+  onChangeEffectDocument,
   onChangeTextDocument,
   onMapPaint,
+  onSceneContextMenu,
   onSelectUiNode,
   selectedUiNodeId,
   onBeginUiDrag
 }: PreviewPaneProps) {
+  const { t } = useTranslation();
+
   if (activeDocument.kind === "ui-layout") {
     return (
-      <div className="workspace-surface">
-        <div className="workspace-surface__header">
-          <h3>UI Layout Viewport</h3>
-          <p>Drag nodes directly on the stage, inspect actual resource usage, then fine tune values in the Inspector.</p>
+      <div className="workspace-surface workspace-surface--scene">
+        <div className="workspace-surface__header workspace-surface__header--scene">
+          <div>
+            <span className="workspace-surface__eyebrow">{t('preview.sceneLabel')}</span>
+            <h3>{t('preview.legacyLayoutPreview')}</h3>
+            <p>
+              {stageMode === "scene"
+                ? sceneTool === "hand"
+                  ? t('preview.handModeDesc')
+                  : sceneTool === "rect"
+                    ? t('preview.rectModeDesc')
+                    : sceneTool === "scale"
+                      ? t('preview.scaleModeDesc')
+                      : sceneTool === "rotate"
+                        ? t('preview.rotateModeDesc')
+                        : t('preview.moveModeDesc')
+                : t('preview.previewModeDesc')}
+            </p>
+          </div>
+          <div className="workspace-surface__scene-metrics">
+            <span>{stageMode === "scene" ? t('scene.editMode') : t('scene.previewModeLabel')}</span>
+            <span>{sceneTool.toUpperCase()}</span>
+            <span>{sceneZoom.toUpperCase()}</span>
+          </div>
         </div>
         <LegacyUiLayoutViewport
           document={activeDocument}
           assets={assets}
+          interactionMode={stageMode}
+          sceneTool={sceneTool}
           selectedNodeId={selectedUiNodeId}
+          zoomMode={sceneZoom}
+          onContextMenu={onSceneContextMenu}
           onSelectNode={onSelectUiNode}
           onBeginDrag={onBeginUiDrag}
         />
@@ -65,8 +110,8 @@ export function PreviewPane({
       <div className="workspace-surface workspace-surface--split">
         <div className="workspace-surface__canvas">
           <div className="workspace-surface__header">
-            <h3>Atlas / Plist Preview</h3>
-            <p>Inspect parsed frames and validate sprite sheet trimming metadata.</p>
+            <h3>{t('preview.atlasPlistPreview')}</h3>
+            <p>{t('preview.atlasPlistDesc')}</p>
           </div>
           {activeDocument.imageUrl ? (
             <div className="atlas-preview">
@@ -84,13 +129,13 @@ export function PreviewPane({
               ) : null}
             </div>
           ) : (
-            <EmptyState title="No texture found" body="Place a sibling png/jpg/webp file next to the atlas to enable preview." />
+            <EmptyState title={t('preview.noTexture')} body={t('preview.noTextureBody')} />
           )}
         </div>
         <div className="workspace-surface__sidebar">
           <div className="workspace-surface__header">
-            <h3>Frames</h3>
-            <p>{activeDocument.frames.length} entries</p>
+            <h3>{t('preview.framesLabel')}</h3>
+            <p>{activeDocument.frames.length} {t('preview.entriesCount')}</p>
           </div>
           <ul className="frame-list">
             {activeDocument.frames.map((frame) => (
@@ -113,45 +158,110 @@ export function PreviewPane({
     );
   }
 
-  if (activeDocument.kind === "avatar-preview") {
+  if (activeDocument.kind === "bitmap-font") {
+    const glyphs = Array.from(activeDocument.font.chars.values()).sort((left, right) => left.id - right.id);
     return (
       <div className="workspace-surface workspace-surface--split">
         <div className="workspace-surface__canvas">
           <div className="workspace-surface__header">
-            <h3>Avatar Preview Lab</h3>
-            <p>Preview cloth and weapon frames with real `biz + png + gameinfo.diz + action.diz` data.</p>
+            <h3>{t('preview.bitmapFontPreview')}</h3>
+            <p>{t('preview.bitmapFontDesc')}</p>
           </div>
+          {activeDocument.imageUrl ? (
+            <div className="bitmap-font-preview" data-bitmap-font-preview={activeDocument.name}>
+              <div className="bitmap-font-preview__sheet">
+                <img src={activeDocument.imageUrl} alt={activeDocument.name} />
+              </div>
+              <div className="bitmap-font-preview__sample">
+                <strong>{t('preview.sample')}</strong>
+                <div className="bitmap-font-preview__sample-text">{buildBitmapFontSample(glyphs)}</div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              title={t('preview.noBitmapSheet')}
+              body={t('preview.noBitmapSheetBody')}
+            />
+          )}
+        </div>
+        <div className="workspace-surface__sidebar">
+          <div className="workspace-surface__header">
+            <h3>{t('preview.glyphsLabel')}</h3>
+            <p>{glyphs.length} {t('preview.entriesCount')}</p>
+          </div>
+          <ul className="frame-list">
+            {glyphs.slice(0, 48).map((glyph) => (
+              <li key={glyph.id}>
+                <div className="frame-list__meta" data-bitmap-char={glyph.id}>
+                  <strong>{describeBitmapChar(glyph.id)}</strong>
+                  <span>
+                    {glyph.width} × {glyph.height}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeDocument.kind === "avatar-preview") {
+    const isPlayer = activeDocument.cloth > 0 && activeDocument.cloth < 30000;
+    const resolvedClothFileId =
+      resolveAvatarFileCandidates(activeDocument.cloth, activeDocument.state, isPlayer).find((fileId) =>
+        Boolean(findBizFileById(activeDocument.clothBank, fileId) || activeDocument.clothImageAssets[String(fileId)])
+      ) ?? 0;
+    const resolvedWeaponFileId =
+      resolveAvatarFileCandidates(activeDocument.weapon, activeDocument.state, isPlayer).find((fileId) =>
+        Boolean((activeDocument.weaponBank && findBizFileById(activeDocument.weaponBank, fileId)) || activeDocument.weaponImageAssets[String(fileId)])
+      ) ?? 0;
+
+    return (
+      <div className="workspace-surface workspace-surface--split">
+        <div className="workspace-surface__canvas">
+          <div className="workspace-surface__header">
+            <h3>{t('preview.avatarPreviewLab')}</h3>
+            <p>{t('preview.avatarLabDesc')}</p>
+          </div>
+          <div className="workspace-surface__toolbar workspace-surface__toolbar--wrap">
+            <DirectionStrip value={activeDocument.dir} onChange={(dir) => onChangeAvatarDocument({ dir })} />
+            <StateStrip value={activeDocument.state} onChange={(state) => onChangeAvatarDocument({ state })} />
+          </div>
+          {activeDocument.sourcePath ? (
+            <div className="workspace-surface__notice">{t('preview.linkedSource')} {activeDocument.sourcePath}</div>
+          ) : null}
           <div className="animated-preview-stage">
             <AvatarPreviewCanvas document={activeDocument} />
           </div>
         </div>
         <div className="workspace-surface__sidebar">
           <div className="workspace-surface__header">
-            <h3>Resources</h3>
-            <p>{Object.keys(activeDocument.clothImageAssets).length} cloth · {Object.keys(activeDocument.weaponImageAssets).length} weapon</p>
+            <h3>{t('preview.resources')}</h3>
+            <p>{Object.keys(activeDocument.clothImageAssets).length} {t('preview.clothCount')} · {Object.keys(activeDocument.weaponImageAssets).length} {t('preview.weaponLabel')}</p>
           </div>
           <ul className="frame-list">
             <li>
               <div className="frame-list__meta">
-                <strong>Cloth</strong>
-                <span>{activeDocument.cloth}</span>
+                <strong>{t('inspector.cloth')}</strong>
+                <span>{activeDocument.cloth} · file {resolvedClothFileId || t('preview.fileNA')}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>Weapon</strong>
-                <span>{activeDocument.weapon}</span>
+                <strong>{t('inspector.weapon')}</strong>
+                <span>{activeDocument.weapon} · file {resolvedWeaponFileId || t('preview.fileNA')}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>State</strong>
+                <strong>{t('inspector.state')}</strong>
                 <span>{activeDocument.state}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>Dir</strong>
+                <strong>{t('inspector.dir')}</strong>
                 <span>{activeDocument.dir}</span>
               </div>
             </li>
@@ -168,8 +278,8 @@ export function PreviewPane({
       <div className="workspace-surface workspace-surface--split">
         <div className="workspace-surface__canvas">
           <div className="workspace-surface__header">
-            <h3>BIZ Animation Bank</h3>
-            <p>Inspect animation file groups, frame coordinates and optional sprite sheet alignment.</p>
+            <h3>{t('preview.bizAnimationBank')}</h3>
+            <p>{t('preview.bizBankDesc')}</p>
           </div>
           {activeDocument.imageUrl ? (
             <div className="atlas-preview">
@@ -188,15 +298,15 @@ export function PreviewPane({
             </div>
           ) : (
             <EmptyState
-              title="No sheet texture attached"
-              body="BIZ parsing is active. Add a sibling image next to the .biz file to overlay frame bounds."
+              title={t('preview.noSheetTexture')}
+              body={t('preview.noSheetTextureBody')}
             />
           )}
         </div>
         <div className="workspace-surface__sidebar">
           <div className="workspace-surface__header">
-            <h3>Files</h3>
-            <p>{activeDocument.files.length} file groups</p>
+            <h3>{t('preview.filesLabel')}</h3>
+            <p>{activeDocument.files.length} {t('preview.fileGroups')}</p>
           </div>
           <ul className="frame-list">
             {activeDocument.files.map((file, index) => (
@@ -208,7 +318,7 @@ export function PreviewPane({
                 >
                   <span>{file.fileId}</span>
                   <small>
-                    {file.dirCount} dir · {file.frames.length} frames
+                    {file.dirCount} {t('preview.dir')} · {file.frames.length} {t('inspector.frames')}
                   </small>
                 </button>
               </li>
@@ -217,8 +327,8 @@ export function PreviewPane({
           {selectedFile ? (
             <>
               <div className="workspace-surface__header">
-                <h3>Frames</h3>
-                <p>{selectedFile.frames.length} entries</p>
+                <h3>{t('preview.framesLabel')}</h3>
+                <p>{selectedFile.frames.length} {t('preview.entriesCount')}</p>
               </div>
               <ul className="frame-list">
                 {selectedFile.frames.map((frame) => (
@@ -250,40 +360,47 @@ export function PreviewPane({
       <div className="workspace-surface workspace-surface--split">
         <div className="workspace-surface__canvas">
           <div className="workspace-surface__header">
-            <h3>Effect Preview Lab</h3>
-            <p>Play effect sequences from `effect.biz`, `effect.tiz`, `gameinfo.diz` and `nodir.diz`.</p>
+            <h3>{t('preview.effectPreviewLab')}</h3>
+            <p>{t('preview.effectLabDesc')}</p>
           </div>
+          <div className="workspace-surface__toolbar workspace-surface__toolbar--wrap">
+            <DirectionStrip value={activeDocument.dir} onChange={(dir) => onChangeEffectDocument({ dir })} />
+            <ToggleChip value={activeDocument.loop} onChange={(loop) => onChangeEffectDocument({ loop })} />
+          </div>
+          {activeDocument.sourcePath ? (
+            <div className="workspace-surface__notice">{t('preview.linkedSource')} {activeDocument.sourcePath}</div>
+          ) : null}
           <div className="animated-preview-stage">
             <EffectPreviewCanvas document={activeDocument} />
           </div>
         </div>
         <div className="workspace-surface__sidebar">
           <div className="workspace-surface__header">
-            <h3>Resources</h3>
-            <p>{Object.keys(activeDocument.effectImageAssets).length} effect sheets</p>
+            <h3>{t('preview.resources')}</h3>
+            <p>{Object.keys(activeDocument.effectImageAssets).length} {t('preview.effectSheets')}</p>
           </div>
           <ul className="frame-list">
             <li>
               <div className="frame-list__meta">
-                <strong>FileId</strong>
+                <strong>{t('inspector.fileId')}</strong>
                 <span>{activeDocument.fileId}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>Dir</strong>
+                <strong>{t('inspector.dir')}</strong>
                 <span>{activeDocument.dir}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>Delay</strong>
+                <strong>{t('inspector.delay')}</strong>
                 <span>{activeDocument.delay}</span>
               </div>
             </li>
             <li>
               <div className="frame-list__meta">
-                <strong>Loop</strong>
+                <strong>{t('inspector.loop')}</strong>
                 <span>{activeDocument.loop ? "true" : "false"}</span>
               </div>
             </li>
@@ -297,10 +414,23 @@ export function PreviewPane({
     return (
       <div className="workspace-surface">
         <div className="workspace-surface__header">
-          <h3>MAPO Block Editor</h3>
-          <p>Paint logic cells directly and save the run-length encoded map back to disk.</p>
+          <h3>{t('preview.mapoBlockEditor')}</h3>
+          <p>
+            {stageMode === "scene"
+              ? sceneTool === "hand"
+                ? t('preview.mapHandModeDesc')
+                : t('preview.mapPaintDesc')
+              : t('preview.mapPreviewDesc')}
+          </p>
         </div>
-        <MapDocumentCanvas document={activeDocument} selectedCell={mapCellSelection} onPaint={onMapPaint} />
+        <MapDocumentCanvas
+          document={activeDocument}
+          interactionMode={stageMode}
+          sceneTool={sceneTool}
+          selectedCell={mapCellSelection}
+          zoomMode={sceneZoom}
+          onPaint={onMapPaint}
+        />
       </div>
     );
   }
@@ -309,8 +439,8 @@ export function PreviewPane({
     return (
       <div className="workspace-surface">
         <div className="workspace-surface__header">
-          <h3>Image Viewer</h3>
-          <p>Static preview of source texture or UI asset.</p>
+          <h3>{t('preview.imageViewer')}</h3>
+          <p>{t('preview.imageViewerDesc')}</p>
         </div>
         <div className="image-preview">
           <img src={activeDocument.imageUrl} alt={activeDocument.name} />
@@ -322,8 +452,8 @@ export function PreviewPane({
   return (
     <div className="workspace-surface">
       <div className="workspace-surface__header">
-        <h3>Text / Meta Document</h3>
-        <p>Edit text-based resources such as diz, tiz, lua, ini, json and csv files.</p>
+        <h3>{t('preview.textMetaDocument')}</h3>
+        <p>{t('preview.textMetaDesc')}</p>
       </div>
       <textarea
         className="text-editor"
@@ -337,4 +467,74 @@ export function PreviewPane({
     if (document.kind !== "text") return;
     onChangeTextDocument(text);
   }
+}
+
+function DirectionStrip({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="segmented-control" data-preview-dir-strip="">
+      {Array.from({ length: 8 }, (_, index) => (
+        <button
+          key={index}
+          type="button"
+          className={`segmented-control__button${value === index ? " segmented-control__button--active" : ""}`}
+          onClick={() => onChange(index)}
+        >
+          {t('preview.dir')} {index}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StateStrip({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t } = useTranslation();
+  const states = [
+    { label: t('preview.stateIdle'), value: 0 },
+    { label: t('preview.stateWalk'), value: 1 },
+    { label: t('preview.stateRun'), value: 2 },
+    { label: t('preview.stateAtk'), value: 4 },
+    { label: t('preview.stateMagic'), value: 5 }
+  ];
+  return (
+    <div className="segmented-control segmented-control--compact">
+      {states.map((state) => (
+        <button
+          key={state.value}
+          type="button"
+          className={`segmented-control__button${value === state.value ? " segmented-control__button--active" : ""}`}
+          onClick={() => onChange(state.value)}
+        >
+          {state.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ToggleChip({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      className={`segmented-control__button${value ? " segmented-control__button--active" : ""}`}
+      onClick={() => onChange(!value)}
+    >
+      {t('inspector.loop')} {value ? t('preview.loopOn') : t('preview.loopOff')}
+    </button>
+  );
+}
+
+function describeBitmapChar(id: number): string {
+  if (id >= 32 && id <= 126) return `${String.fromCharCode(id)} · ${id}`;
+  return `U+${id.toString(16).toUpperCase().padStart(4, "0")}`;
+}
+
+function buildBitmapFontSample(glyphs: Array<{ id: number }>): string {
+  const asciiGlyphs = glyphs
+    .map((glyph) => glyph.id)
+    .filter((id) => id >= 32 && id <= 126)
+    .slice(0, 16);
+  if (asciiGlyphs.length <= 0) return "No printable glyphs";
+  return asciiGlyphs.map((id) => String.fromCharCode(id)).join("");
 }

@@ -1,0 +1,21 @@
+{
+  "frames": {
+    "sample_frame_badge": {
+      "frame": { "x": 360, "y": 180, "w": 120, "h": 120 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 120, "h": 120 },
+      "sourceSize": { "w": 120, "h": 120 }
+    },
+    "sample_progress_fill": {
+      "frame": { "x": 180, "y": 420, "w": 280, "h": 34 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 280, "h": 34 },
+      "sourceSize": { "w": 280, "h": 34 }
+    }
+  },
+  "meta": {
+    "image": "sample-atlas.png"
+  }
+}

@@ -41,6 +41,7 @@ export type LegacyUILayoutNode = {
 export type WorkspaceAssetKind =
   | "ui-layout"
   | "atlas"
+  | "bitmap-font"
   | "biz"
   | "map"
   | "image"
@@ -79,6 +80,36 @@ export type AtlasDocument = {
   imageHandle: FileSystemFileHandle | null;
   imageUrl: string | null;
   frames: AtlasFrameDocument[];
+};
+
+export type LegacyBitmapFontChar = {
+  height: number;
+  id: number;
+  width: number;
+  x: number;
+  xadvance: number;
+  xoffset: number;
+  y: number;
+  yoffset: number;
+};
+
+export type LegacyBitmapFont = {
+  chars: Map<number, LegacyBitmapFontChar>;
+  font: string;
+  image: string;
+  lineHeight: number;
+  scaleH: number;
+  scaleW: number;
+};
+
+export type BitmapFontDocument = {
+  kind: "bitmap-font";
+  id: string;
+  imagePath: string | null;
+  imageUrl: string | null;
+  name: string;
+  sourcePath: string;
+  font: LegacyBitmapFont;
 };
 
 export type BizFrame = {
@@ -151,8 +182,10 @@ export type MapOverlayEntry = {
   y: number;
   label: string;
   subtitle: string;
+  details: string[];
   radius: number;
   targetMapId: string | null;
+  targetMapName: string | null;
   sourceId: number;
 };
 
@@ -190,7 +223,7 @@ export type AvatarPreviewDocument = {
   kind: "avatar-preview";
   id: string;
   name: string;
-  sourcePath: null;
+  sourcePath: string | null;
   cloth: number;
   weapon: number;
   dir: number;
@@ -207,7 +240,7 @@ export type EffectPreviewDocument = {
   kind: "effect-preview";
   id: string;
   name: string;
-  sourcePath: null;
+  sourcePath: string | null;
   fileId: number;
   dir: number;
   delay: number;
@@ -238,6 +271,7 @@ export type ImageDocument = {
 export type EditorDocument =
   | AtlasDocument
   | AvatarPreviewDocument
+  | BitmapFontDocument
   | BizDocument
   | EffectPreviewDocument
   | GenericTextDocument
