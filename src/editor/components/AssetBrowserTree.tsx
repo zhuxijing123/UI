@@ -65,7 +65,7 @@ export function AssetBrowserTree({
               className={`tree__asset tree__asset--compact${selectedAssetId === node.asset.id ? " tree__asset--selected" : ""}`}
               onClick={() => onSelectAsset(node.asset.id)}
               onDoubleClick={() => onOpenAsset(node.asset)}
-              onContextMenu={(e) => onAssetContextMenu(e, { asset: node.asset })}
+              onContextMenu={(e) => { e.stopPropagation(); onAssetContextMenu(e, { asset: node.asset }); }}
               title={`${node.asset.name}\n${node.asset.path}\n${node.kindLabel}`}
             >
               <div className="tree__entry-main">

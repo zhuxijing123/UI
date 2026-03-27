@@ -1652,8 +1652,10 @@ function App() {
   }, []);
 
   // Context menu handlers
-  const handleHierarchyContextMenu = (e: React.MouseEvent): void => {
-    if (activeDocument?.kind !== "ui-layout" || !selectedUiNode) return;
+  const handleHierarchyContextMenu = (e: React.MouseEvent, nodeId?: number): void => {
+    if (activeDocument?.kind !== "ui-layout") return;
+    const targetNodeId = nodeId ?? selectedUiNode?.id;
+    if (targetNodeId === undefined) return;
     const items: ContextMenuItem[] = [
       { id: "copy", label: t('context.copy'), onClick: () => appendLog("info", "Copy node (not implemented)") },
       { id: "paste", label: t('context.paste'), onClick: () => appendLog("info", "Paste node (not implemented)") },
@@ -1730,7 +1732,6 @@ function App() {
 
   const handleSceneContextMenu = (e: React.MouseEvent): void => {
     e.preventDefault();
-    if (activeDocument?.kind !== "ui-layout") return;
     const items: ContextMenuItem[] = [
       { id: "addChild", label: t('context.addChild'), disabled: !canEditUiLayout, onClick: handleAddUiChild },
       { id: "duplicate", label: t('context.duplicate'), disabled: !canMutateUiNode || selectedUiNode?.parent === 0, onClick: handleDuplicateSelectedUiNode },
@@ -2125,6 +2126,11 @@ function App() {
                       selectedNodeId={selectedUiNode?.id ?? null}
                       onSelectNode={(nodeId) => setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nodeId }))}
                       onDeleteNode={handleRemoveSelectedUiNode}
+                      onContextMenu={(e, nodeId) => {
+                        setSelectedUiNodeIdByDoc((current) => ({ ...current, [activeDocument.id]: nodeId }));
+                        handleHierarchyContextMenu(e, nodeId);
+                      }}
+                      onEmptyContextMenu={(e) => handlePanelContextMenu(e, "hierarchy")}
                     />
                   ) : (
                     <EmptyState

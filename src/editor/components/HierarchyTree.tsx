@@ -138,7 +138,7 @@ function HierarchyTreeNode({
       type="button"
       className={`tree__asset tree__asset--hierarchy${selectedNodeId === node.node.id ? " tree__asset--selected" : ""}`}
       onClick={() => onSelectNode(node.node.id)}
-      onContextMenu={(e) => onContextMenu?.(e, node.node.id)}
+      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, node.node.id); }}
       title={`${label} (${nodeType})`}
     >
       <div className="tree__entry-main">
@@ -162,7 +162,7 @@ function HierarchyTreeNode({
           className="tree__summary tree__summary--hierarchy"
           title={`${label} (${nodeType})`}
           onClick={() => onSelectNode(node.node.id)}
-          onContextMenu={(e) => onContextMenu?.(e, node.node.id)}
+          onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, node.node.id); }}
         >
           <div className="tree__entry-main">
             <span className="tree__caret">{">"}</span>
