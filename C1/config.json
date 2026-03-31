@@ -1,0 +1,52 @@
+{
+  "export": {
+    "directory": "导出",
+    "map_subdirectory": "地图",
+    "sprite_subdirectory": "素材",
+    "auto_create_directories": true
+  },
+  "defaults": {
+    "sprite_type": "human",
+    "sprite_directory": "",
+    "auto_load_last_directory": true,
+    "last_directory": ""
+  },
+  "image": {
+    "max_zoom": 5.0,
+    "min_zoom": 0.1,
+    "default_zoom": 1.0,
+    "quality": 95,
+    "format": "PNG"
+  },
+  "performance": {
+    "max_cache_size": 104857600,
+    "cache_cleanup_interval": 300,
+    "max_image_size": 4096,
+    "enable_progressive_loading": true
+  },
+  "ui": {
+    "window_width": 1400,
+    "window_height": 900,
+    "theme": "default",
+    "auto_save_layout": true,
+    "show_grid": false,
+    "show_reference_lines": true
+  },
+  "map": {
+    "default_scale": 1.0,
+    "minimap_size": 256,
+    "show_minimap": true,
+    "auto_fit_to_canvas": true,
+    "marker_colors": {
+      "walkable": "#00FF00",
+      "blocked": "#FF0000",
+      "masked": "#0000FF"
+    },
+    "marker_alpha": 0.3
+  },
+  "plugins": {
+    "enabled_plugins": [],
+    "plugin_directory": "plugins",
+    "auto_load_plugins": true
+  }
+}

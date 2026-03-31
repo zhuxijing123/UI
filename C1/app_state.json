@@ -1,0 +1,22 @@
+{
+  "current_sprite_type": "h5_map",
+  "current_sprite_id": "1",
+  "current_action": "stand",
+  "current_direction": 0,
+  "animation_playing": false,
+  "animation_speed": 100,
+  "offset_x": 0,
+  "offset_y": 0,
+  "zoom_level": 1.0,
+  "show_walkable": true,
+  "show_blocked": true,
+  "show_masked": true,
+  "last_directory": "",
+  "window_width": 1400,
+  "window_height": 900,
+  "memory_usage_mb": 0.0,
+  "cpu_percent": 0.0,
+  "cache_size_mb": 0.0,
+  "enabled_plugins": [],
+  "last_updated": "2025-09-15T17:07:17.118791"
+}

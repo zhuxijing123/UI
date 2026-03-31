@@ -24,3 +24,6 @@ output/
 *.njsproj
 *.sln
 *.sw?
+C1/素材/
+C1/.idea/
+C1/**/__pycache__/
